@@ -1,3 +1,5 @@
+#xmet
+
 Intro for new developers
 This is a quick introduction to get new developers up to speed on xmet.
 
@@ -11,12 +13,18 @@ git submodule update --init --recursive
 cmake -DCMAKE_BUILD_TYPE=Debug .
 make
 ./programs/witness_node/witness_node
+
+
+
+
 This will launch the witness node.
+
 If you would like to launch the command-line wallet,
 you must first specify a port for communication with the witness node. To do this,
 add text to witness_node_data_dir/config.ini as follows, then restart the node:
 
 rpc-endpoint = 127.0.0.1:8090
+
 Then, in a separate terminal window, start the command-line wallet cli_wallet:
 
 ./programs/cli_wallet/cli_wallet
