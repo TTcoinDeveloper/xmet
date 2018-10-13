@@ -33,8 +33,46 @@ endif(USE_PCH)
 
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/CMakeModules" )
 list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/GitVersionGen" )
-include( GetGitRevisionDescription )
-get_git_head_revision( GIT_REFSPEC GIT_SHA2 )
+
+  set( RPCRT4 Rpcrt4 )
+SET (BOOST_ROOT "C:/")
+SET (BOOST_INCLUDE_DIR "/include/boost-1_55/boost")
+SET (BOOST_LIBRARIES "/libs")
+SET (BOOST_LIBRARIES "/lib")
+SET (BOOST_LIBRARIES "/boost")
+
+SET (ZLIB_ROOT_DIR "C:/")
+SET (ZLIB_INCLUDE_DIR "/contrib")
+SET (ZLIB_LIBRARIES "C:/")
+
+SET (CURSES_LIBRARY "C:/")
+SET (Readline_INCLUDE_DIR "C:/readline/include")
+SET (Readline_LIBRARY "C:/readline/lib")
+
+SET (OPENSSL_ROOT_DIR "C:/")
+SET (OPENSSL_INCLUDE_DIR "/include")
+SET (OPENSSL_LIBRARIES "C:/")
+ 
+SET (BDB_ROOT_DIR "C:/")
+SET (BDB_INCLUDE_DIR "/include")
+SET (BDB_LIBRARIES "/include")
+
+set (BOOST_INCLUDE_DIR "/stage/lib")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/thread")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/date_time")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/system")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/filesystem")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/program_options")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/signals")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/container")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/serialization")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/chrono")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/unit_test_framework")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/context")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/locale")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/coroutine")
+set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/container")
 
 SET(BOOST_COMPONENTS)
 LIST(APPEND BOOST_COMPONENTS thread
@@ -49,21 +87,21 @@ LIST(APPEND BOOST_COMPONENTS thread
                              context
                              locale)
 SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
-
-IF( WIN32 )
+  #boost
   SET(BOOST_ROOT $ENV{BOOST_ROOT})
+#  set(Boost_USE_DEBUG_PYTHON ON)
   set(Boost_USE_MULTITHREADED ON)
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
-ENDIF(WIN32)
 
-FIND_PACKAGE(Boost 1.57 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
-# For Boost 1.53 on windows, coroutine was not in BOOST_LIBRARYDIR and do not need it to build,  but if boost versin >= 1.54, find coroutine otherwise will cause link errors
-IF(NOT "${Boost_VERSION}" MATCHES "1.53(.*)")
-   SET(BOOST_LIBRARIES_TEMP ${Boost_LIBRARIES})
-   FIND_PACKAGE(Boost 1.54 REQUIRED COMPONENTS coroutine)
-   LIST(APPEND BOOST_COMPONENTS coroutine)
-   SET(Boost_LIBRARIES ${BOOST_LIBRARIES_TEMP} ${Boost_LIBRARIES})
-ENDIF()
+  FIND_PACKAGE(Boost 1.55 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+  # For Boost 1.53 on windows, coroutine was not in BOOST_LIBRARYDIR and do not need it to build,  but if boost versin >= 1.54, find coroutine otherwise will cause link errors
+  IF(NOT "${Boost_VERSION}" MATCHES "1.55(.*)")
+    SET(BOOST_LIBRARIES_TEMP ${Boost_LIBRARIES})
+    FIND_PACKAGE(Boost 1.54 REQUIRED COMPONENTS coroutine)
+    LIST(APPEND BOOST_COMPONENTS coroutine)
+    SET(Boost_LIBRARIES ${BOOST_LIBRARIES_TEMP} ${Boost_LIBRARIES})
+  ENDIF()
+
 
 if( WIN32 )
 
