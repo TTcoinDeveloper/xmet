@@ -405,6 +405,8 @@ void to_variant( const ecc::public_key& var,  variant& vo )
     vo = var.serialize();
 }
 
+}
+
 void from_variant( const variant& var,  ecc::public_key& vo )
 {
     ecc::public_key_data dat;
