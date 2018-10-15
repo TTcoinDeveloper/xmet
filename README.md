@@ -9,7 +9,7 @@ Starting XMET
 
 and then proceed with:
 
-    git clone https://github.com/cryptonomex/xmet.git
+    git clone https://github.com/TTcoinDeveloper/xmet.git
     cd xmet
     git submodule update --init --recursive
     cmake -DCMAKE_BUILD_TYPE=Debug .
