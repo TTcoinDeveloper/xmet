@@ -94,67 +94,16 @@ IF( WIN32 )
   MESSAGE(STATUS "Configuring fc to build on Win32")
 
   set( RPCRT4 Rpcrt4 )
-SET (BOOST_ROOT "C:/")
-SET (BOOST_INCLUDE_DIR "/include/boost-1_55/boost")
-SET (BOOST_LIBRARIES "/libs")
-SET (BOOST_LIBRARIES "/lib")
-SET (BOOST_LIBRARIES "/boost")
 
-SET (ZLIB_ROOT_DIR "C:/")
-SET (ZLIB_INCLUDE_DIR "/contrib")
-SET (ZLIB_LIBRARIES "C:/")
-
-SET (CURSES_LIBRARY "C:/")
-SET (Readline_INCLUDE_DIR "C:/readline/include")
-SET (Readline_LIBRARY "C:/readline/lib")
-
-SET (OPENSSL_ROOT_DIR "C:/")
-SET (OPENSSL_INCLUDE_DIR "/include")
-SET (OPENSSL_LIBRARIES "C:/")
- 
-SET (BDB_ROOT_DIR "C:/")
-SET (BDB_INCLUDE_DIR "/include")
-SET (BDB_LIBRARIES "/include")
-
-set (BOOST_INCLUDE_DIR "/stage/lib")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/thread")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/date_time")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/system")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/filesystem")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/program_options")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/signals")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/container")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/serialization")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/chrono")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/unit_test_framework")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/context")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/locale")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/coroutine")
-set (BOOST_INCLUDE_DIR "/include/boost-1_55/boost/container")
-
-SET(BOOST_COMPONENTS)
-LIST(APPEND BOOST_COMPONENTS thread
-                             date_time
-                             system
-                             filesystem
-                             program_options
-                             signals
-                             serialization
-                             chrono
-                             unit_test_framework
-                             context
-                             locale)
-SET( Boost_USE_STATIC_LIBS ON CACHE STRING "ON or OFF" )
   #boost
   SET(BOOST_ROOT $ENV{BOOST_ROOT})
 #  set(Boost_USE_DEBUG_PYTHON ON)
   set(Boost_USE_MULTITHREADED ON)
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
 
-  FIND_PACKAGE(Boost 1.55 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+  FIND_PACKAGE(Boost 1.53 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
   # For Boost 1.53 on windows, coroutine was not in BOOST_LIBRARYDIR and do not need it to build,  but if boost versin >= 1.54, find coroutine otherwise will cause link errors
-  IF(NOT "${Boost_VERSION}" MATCHES "1.55(.*)")
+  IF(NOT "${Boost_VERSION}" MATCHES "1.53(.*)")
     SET(BOOST_LIBRARIES_TEMP ${Boost_LIBRARIES})
     FIND_PACKAGE(Boost 1.54 REQUIRED COMPONENTS coroutine)
     LIST(APPEND BOOST_COMPONENTS coroutine)
@@ -300,11 +249,10 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/git_revision.cpp.in" "${CMAKE_CU
 list(APPEND sources "${CMAKE_CURRENT_BINARY_DIR}/git_revision.cpp")
 list(APPEND sources ${fc_headers})
 
-add_subdirectory( vendor/websocketpp EXCLUDE_FROM_ALL )
+add_subdirectory( vendor/websocketpp )
 add_subdirectory( vendor/udt4 )
 
-setup_library( fc SOURCES ${sources} LIBRARY_TYPE STATIC )
-install( DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/" DESTINATION include )
+setup_library( fc SOURCES ${sources} LIBRARY_TYPE STATIC DONT_INSTALL_LIBRARY )
 
 # begin readline stuff
 find_package(Curses)
@@ -368,7 +316,6 @@ target_include_directories(fc
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/udt4/src
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/websocketpp
     ${CMAKE_CURRENT_SOURCE_DIR}/vendor/secp256k1-zkp
-    ${ZLIB_INCLUDE_DIR}
   )
 
 #target_link_libraries( fc PUBLIC udt ${Boost_LIBRARIES} ${OPENSSL_LIBRARIES} ${ZLIB_LIBRARIES} ${PLATFORM_SPECIFIC_LIBS} ${RPCRT4} ${CMAKE_DL_LIBS} ${rt_library} ${ECC_LIB} )
