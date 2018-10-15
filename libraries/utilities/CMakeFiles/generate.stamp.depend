@@ -1,0 +1,24 @@
+# CMake generation dependency list for this directory.
+C:/xmet/libraries/utilities/CMakeLists.txt
+C:/xmet/libraries/fc/GitVersionGen/GetGitRevisionDescription.cmake
+C:/xmet/.git/HEAD
+C:/xmet/libraries/fc/GitVersionGen/GetGitRevisionDescription.cmake.in
+C:/xmet/libraries/utilities/CMakeFiles/git-data/grabRef.cmake
+C:/xmet/.git/refs/heads/master
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/FindGit.cmake
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/FindPackageHandleStandardArgs.cmake
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/FindPackageMessage.cmake
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/CMakeParseArguments.cmake
+C:/xmet/.git/HEAD
+C:/xmet/libraries/fc/GitVersionGen/GetGitRevisionDescription.cmake.in
+C:/xmet/libraries/utilities/CMakeFiles/git-data/grabRef.cmake
+C:/xmet/.git/refs/heads/master
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/FindGit.cmake
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/FindPackageHandleStandardArgs.cmake
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/FindPackageMessage.cmake
+C:/Program Files (x86)/CMake 2.8/share/cmake-2.8/Modules/CMakeParseArguments.cmake
+C:/xmet/.git/HEAD
+C:/xmet/libraries/fc/GitVersionGen/GetGitRevisionDescription.cmake.in
+C:/xmet/libraries/utilities/CMakeFiles/git-data/grabRef.cmake
+C:/xmet/.git/refs/heads/master
+C:/xmet/libraries/utilities/git_revision.cpp.in
