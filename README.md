@@ -15,6 +15,9 @@ and then proceed with:
     cmake -DCMAKE_BUILD_TYPE=Debug .
     make
     ./programs/witness_node/witness_node
+    
+    
+    chmod +x autogen.sh
 
 This will launch the witness node. If you would like to launch the command-line wallet, you must first specify a port
 for communication with the witness node. To do this, add text to `witness_node_data_dir/config.ini` as follows, then
