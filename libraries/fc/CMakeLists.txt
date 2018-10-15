@@ -12,6 +12,9 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/GitVersionGen")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules")
 
 INCLUDE(GetPrerequisites)
+INCLUDE( VersionMacros )
+INCLUDE( SetupTargetMacros )
+INCLUDE(GetGitRevisionDescription)
 
 get_git_head_revision(GIT_REFSPEC FC_GIT_REVISION_SHA)
 get_git_unix_timestamp(FC_GIT_REVISION_UNIX_TIMESTAMP)
