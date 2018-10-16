@@ -2,45 +2,52 @@
 #include <openssl/dh.h>
 
 namespace fc {
-    SSL_TYPE(ssl_dh, DH, DH_free)
-
-    static bool validate( const ssl_dh& dh, bool& valid ) {
-        int check;
-        DH_check(dh,&check);
-        return valid = !(check /*& DH_CHECK_P_NOT_SAFE_PRIME*/);
-    }
-
    bool diffie_hellman::generate_params( int s, uint8_t g )
    {
-        ssl_dh dh = DH_generate_parameters( s, g, NULL, NULL );
+        DH* dh = DH_generate_parameters( s, g, NULL, NULL );
         p.resize( BN_num_bytes( dh->p ) );
         if( p.size() )
             BN_bn2bin( dh->p, (unsigned char*)&p.front()  );
         this->g = g;
-        return fc::validate( dh, valid );
-   }
 
+        int check;
+        DH_check(dh,&check);
+        DH_free(dh);
+
+        if( check & DH_CHECK_P_NOT_SAFE_PRIME )
+            return valid = false;
+        return valid = true;
+   }
    bool diffie_hellman::validate()
    {
         if( !p.size() ) 
             return valid = false;
-        ssl_dh dh = DH_new();
+        DH* dh = DH_new(); 
         dh->p = BN_bin2bn( (unsigned char*)&p.front(), p.size(), NULL );
         dh->g = BN_bin2bn( (unsigned char*)&g, 1, NULL );
-        return fc::validate( dh, valid );
+
+        int check;
+        DH_check(dh,&check);
+        DH_free(dh);
+        if( check & DH_CHECK_P_NOT_SAFE_PRIME )
+            return valid = false;
+        return valid = true;
    }
 
    bool diffie_hellman::generate_pub_key()
    {
         if( !p.size() ) 
             return valid = false;
-        ssl_dh dh = DH_new();
+        DH* dh = DH_new(); 
         dh->p = BN_bin2bn( (unsigned char*)&p.front(), p.size(), NULL );
         dh->g = BN_bin2bn( (unsigned char*)&g, 1, NULL );
 
-        if( !fc::validate( dh, valid ) )
+        int check;
+        DH_check(dh,&check);
+        if( check & DH_CHECK_P_NOT_SAFE_PRIME )
         {
-            return false;
+            DH_free(dh);
+            return valid = false;
         }
         DH_generate_key(dh);
 
@@ -51,10 +58,11 @@ namespace fc {
         if( priv_key.size() )
             BN_bn2bin( dh->priv_key, (unsigned char*)&priv_key.front()  );
 
-        return true;
+        DH_free(dh);
+        return valid = true;
    }
    bool diffie_hellman::compute_shared_key( const char* buf, uint32_t s ) {
-        ssl_dh dh = DH_new();
+        DH* dh = DH_new(); 
         dh->p = BN_bin2bn( (unsigned char*)&p.front(), p.size(), NULL );
         dh->pub_key = BN_bin2bn( (unsigned char*)&pub_key.front(), pub_key.size(), NULL );
         dh->priv_key = BN_bin2bn( (unsigned char*)&priv_key.front(), priv_key.size(), NULL );
@@ -62,19 +70,22 @@ namespace fc {
 
         int check;
         DH_check(dh,&check);
-        if( !fc::validate( dh, valid ) )
+        if( check & DH_CHECK_P_NOT_SAFE_PRIME )
         {
-            return false;
+            DH_free(dh);
+            return valid = false;
         }
 
-        ssl_bignum pk;
-        BN_bin2bn( (unsigned char*)buf, s, pk );
+
+        BIGNUM* pk = BN_bin2bn( (unsigned char*)buf, s, NULL ); 
         shared_key.resize( DH_size(dh) ); 
         DH_compute_key( (unsigned char*)&shared_key.front(), pk, dh );
-
-        return true;
+        BN_free(pk);
+        DH_free(dh);
+        return valid = true;
    }
    bool diffie_hellman::compute_shared_key( const std::vector<char>& pubk ) {
       return compute_shared_key( &pubk.front(), pubk.size() );
    }
+
 }

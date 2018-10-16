@@ -2,7 +2,6 @@
 #include <fc/thread/thread.hpp>
 #include <fc/network/tcp_socket.hpp>
 #include <fc/io/sstream.hpp>
-#include <fc/network/ip.hpp>
 #include <fc/io/stdio.hpp>
 #include <fc/log/logger.hpp>
 
@@ -17,22 +16,21 @@ namespace fc { namespace http {
       {}
 
       void send_header() {
-         //ilog( "sending header..." );
          fc::stringstream ss;
          ss << "HTTP/1.1 " << rep.status << " ";
          switch( rep.status ) {
-            case fc::http::reply::OK: ss << "OK\r\n"; break;
-            case fc::http::reply::RecordCreated: ss << "Record Created\r\n"; break;
-            case fc::http::reply::NotFound: ss << "Not Found\r\n"; break;
-            case fc::http::reply::Found: ss << "Found\r\n"; break;
-            default: ss << "Internal Server Error\r\n"; break;
+            case fc::http::reply::OK: ss << "OK\n\r"; break;
+            case fc::http::reply::RecordCreated: ss << "Record Created\n\r"; break;
+            case fc::http::reply::NotFound: ss << "Not Found\n\r"; break;
+            case fc::http::reply::Found: ss << "Found\n\r"; break;
+            case fc::http::reply::InternalServerError: ss << "Internal Server Error\r\n"; break;
          }
          for( uint32_t i = 0; i < rep.headers.size(); ++i ) {
             ss << rep.headers[i].key <<": "<<rep.headers[i].val <<"\r\n";
          }
          ss << "Content-Length: "<<body_length<<"\r\n\r\n";
          auto s = ss.str();
-         //fc::cerr<<s<<"\n";
+         fc::cerr<<s<<"\n";
          con->get_socket().write( s.c_str(), s.size() );
       }
 
@@ -48,108 +46,57 @@ namespace fc { namespace http {
   {
     public:
       impl(){}
-
-      impl(const fc::ip::endpoint& p ) 
-      {
-        tcp_serv.set_reuse_address();
+      impl(uint16_t p ) {
         tcp_serv.listen(p);
-        accept_complete = fc::async([this](){ this->accept_loop(); }, "http_server accept_loop");
+        accept_complete = fc::async([this](){ this->accept_loop(); });
       }
-
-      ~impl() 
-      {
-        try
-        {
+      fc::future<void> accept_complete;
+      ~impl() {
+        try {
           tcp_serv.close();
-          if (accept_complete.valid())
-            accept_complete.wait();
-        }
-        catch (...) 
-        {
-        }
-
-        for (fc::future<void>& request_in_progress : requests_in_progress)
-        {
-          try
-          {
-            request_in_progress.cancel_and_wait();
-          }
-          catch (const fc::exception& e)
-          {
-            wlog("Caught exception while canceling http request task: ${error}", ("error", e));
-          }
-          catch (const std::exception& e)
-          {
-            wlog("Caught exception while canceling http request task: ${error}", ("error", e.what()));
-          }
-          catch (...)
-          {
-            wlog("Caught unknown exception while canceling http request task");
-          }
-        }
-        requests_in_progress.clear();
+          accept_complete.wait();
+        }catch(...){}
       }
-
-      void accept_loop() 
-      {
-        while( !accept_complete.canceled() )
-        {
-          http::connection_ptr con = std::make_shared<http::connection>();
-          tcp_serv.accept( con->get_socket() );
-          //ilog( "Accept Connection" );
-          // clean up futures for any completed requests
-          for (auto iter = requests_in_progress.begin(); iter != requests_in_progress.end();)
-            if (!iter->valid() || iter->ready())
-              iter = requests_in_progress.erase(iter);
-            else
-              ++iter;
-          requests_in_progress.emplace_back(fc::async([=](){ handle_connection(con, on_req); }, "http_server handle_connection"));
-        }
+      void accept_loop() {
+            while( !accept_complete.canceled() )
+            {
+              http::connection_ptr con = std::make_shared<http::connection>();
+              tcp_serv.accept( con->get_socket() );
+              ilog( "Accept Connection" );
+              fc::async( [=](){ handle_connection( con, on_req ); } );
+            }
       }
 
       void handle_connection( const http::connection_ptr& c,  
-                              std::function<void(const http::request&, const server::response& s )> do_on_req ) 
-      {
-        try 
-        {
-          http::server::response rep( fc::shared_ptr<response::impl>( new response::impl(c) ) );
-          request req = c->read_request();
-          if( do_on_req ) 
-            do_on_req( req, rep );
-          c->get_socket().close();
-        } 
-        catch ( fc::exception& e ) 
-        {
-          wlog( "unable to read request ${1}", ("1", e.to_detail_string() ) );//fc::except_str().c_str());
-        }
-        //wlog( "done handle connection" );
+                              std::function<void(const http::request&, const server::response& s )> do_on_req ) {
+         try {
+             http::server::response rep( fc::shared_ptr<response::impl>( new response::impl(c, [=](){ this->handle_connection(c,do_on_req); } ) ) );
+             auto req = c->read_request();
+             if( do_on_req ) do_on_req( req, rep );
+             c->get_socket().close();
+          } catch ( fc::exception& e ) {
+             wlog( "unable to read request ${1}", ("1", e.to_detail_string() ) );//fc::except_str().c_str());
+          }
+          wlog( "done handle connection" );
       }
-
-      fc::future<void>                                                      accept_complete;
-      std::function<void(const http::request&, const server::response& s)>  on_req;
-      std::vector<fc::future<void> >                                        requests_in_progress;
+      std::function<void(const http::request&, const server::response& s )> on_req;
       fc::tcp_server                                                        tcp_serv;
   };
 
 
 
-  server::server():my( new impl() ){}
-  server::server( uint16_t port ) :my( new impl(fc::ip::endpoint( fc::ip::address(),port)) ){}
+  server::server(){}
+  server::server( uint16_t port ) :my( new impl(port) ){}
   server::server( server&& s ):my(fc::move(s.my)){}
 
   server& server::operator=(server&& s)      { fc_swap(my,s.my); return *this; }
 
   server::~server(){}
 
-  void server::listen( const fc::ip::endpoint& p ) 
-  {
+  void server::listen( uint16_t p ) {
     my.reset( new impl(p) );
   }
 
-  fc::ip::endpoint server::get_local_endpoint() const
-  {
-    return my->tcp_serv.get_local_endpoint();
-  }
 
 
   server::response::response(){}
@@ -161,6 +108,7 @@ namespace fc { namespace http {
   server::response& server::response::operator=(server::response&& s)      { fc_swap(my,s.my); return *this; }
 
   void server::response::add_header( const fc::string& key, const fc::string& val )const {
+     wlog( "Attempt to add header after sending headers" );
      my->rep.headers.push_back( fc::http::header( key, val ) );
   }
   void server::response::set_status( const http::reply::status_code& s )const {
@@ -186,20 +134,17 @@ namespace fc { namespace http {
     my->body_bytes_sent += len;
     my->con->get_socket().write( data, static_cast<size_t>(len) ); 
     if( my->body_bytes_sent == int64_t(my->body_length) ) {
-      if( false || my->handle_next_req ) {
+      if( my->handle_next_req ) {
         ilog( "handle next request..." );
         //fc::async( std::function<void()>(my->handle_next_req) );
-        fc::async( my->handle_next_req, "http_server handle_next_req" );
+        fc::async( my->handle_next_req );
       }
     }
   }
 
   server::response::~response(){}
-
   void server::on_request( const std::function<void(const http::request&, const server::response& s )>& cb )
-  { 
-     my->on_req = cb; 
-  }
+  { my->on_req = cb; }
 
 
 

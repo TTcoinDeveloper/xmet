@@ -36,19 +36,19 @@ namespace fc {
          auto lgr = logger::get( cfg.loggers[i].name );
 
          // TODO: finish configure logger here...
-         if( cfg.loggers[i].parent.valid() ) {
+         if( cfg.loggers[i].parent ) {
             lgr.set_parent( logger::get( *cfg.loggers[i].parent ) );
          }
          lgr.set_name(cfg.loggers[i].name);
-         if( cfg.loggers[i].level.valid() ) lgr.set_log_level( *cfg.loggers[i].level );
+         if( cfg.loggers[i].level ) lgr.set_log_level( *cfg.loggers[i].level );
          
 
          for( auto a = cfg.loggers[i].appenders.begin(); a != cfg.loggers[i].appenders.end(); ++a ){
             auto ap = appender::get( *a );
             if( ap ) { lgr.add_appender(ap); }
          }
+         return reg_console_appender || reg_file_appender;
       }
-      return reg_console_appender || reg_file_appender;
       } catch ( exception& e )
       {
          fc::cerr<<e.to_detail_string()<<"\n";
@@ -85,4 +85,5 @@ namespace fc {
       cfg.loggers.push_back( dlc );
       return cfg;
    }
+   bool do_default_config      = configure_logging( logging_config::default_config() );
 }

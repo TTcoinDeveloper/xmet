@@ -8,45 +8,18 @@ namespace fc {
   struct context;
   class spin_lock;
 
-   namespace detail
-   {
-      struct specific_data_info
-      {
-         void* value;
-         void (*cleanup)(void*);
-         specific_data_info() :
-            value(0),
-            cleanup(0)
-            {}
-         specific_data_info(void* value, void (*cleanup)(void*)) :
-            value(value),
-            cleanup(cleanup)
-         {}
-      };
-      void* get_task_specific_data(unsigned slot);
-      void set_task_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-   }
-
   class task_base : virtual public promise_base {
     public:
-              void run(); 
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override;
-
+      void        run(); 
     protected:
       ~task_base();
-      /// Task priority looks like unsupported feature.
+
       uint64_t    _posted_num;
       priority    _prio;
       time_point  _when;
       void        _set_active_context(context*);
       context*    _active_context;
       task_base*  _next;
-
-      // support for task-specific data
-      std::vector<detail::specific_data_info> *_task_specific_data;
-
-      friend void* detail::get_task_specific_data(unsigned slot);
-      friend void detail::set_task_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
 
       task_base(void* func);
       // opaque internal / private data used by
@@ -60,10 +33,6 @@ namespace fc {
       void*         _functor;
       void          (*_destroy_functor)(void*);
       void          (*_run_functor)(void*, void* );
-
-      void          run_impl(); 
-
-      void cleanup_task_specific_data();
   };
 
   namespace detail {
@@ -90,7 +59,7 @@ namespace fc {
   class task : virtual public task_base, virtual public promise<R> {
     public:
       template<typename Functor>
-      task( Functor&& f, const char* desc ):promise_base(desc), task_base(&_functor), promise<R>(desc) {
+      task( Functor&& f ):task_base(&_functor) {
         typedef typename fc::deduce<Functor>::type FunctorType;
         static_assert( sizeof(f) <= sizeof(_functor), "sizeof(Functor) is larger than FunctorSize" );
         new ((char*)&_functor) FunctorType( fc::forward<Functor>(f) );
@@ -99,18 +68,15 @@ namespace fc {
         _promise_impl = static_cast<promise<R>*>(this);
         _run_functor  = &detail::functor_run<FunctorType>::run;
       }
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override { task_base::cancel(reason); }
-
       aligned<FunctorSize> _functor;
     private:
       ~task(){}
   };
-
   template<uint64_t FunctorSize>
   class task<void,FunctorSize> : virtual public task_base, virtual public promise<void> {
     public:
       template<typename Functor>
-      task( Functor&& f, const char* desc ):promise_base(desc), task_base(&_functor), promise<void>(desc) {
+      task( Functor&& f ):task_base(&_functor) {
         typedef typename fc::deduce<Functor>::type FunctorType;
         static_assert( sizeof(f) <= sizeof(_functor), "sizeof(Functor) is larger than FunctorSize"  );
         new ((char*)&_functor) FunctorType( fc::forward<Functor>(f) );
@@ -119,11 +85,10 @@ namespace fc {
         _promise_impl = static_cast<promise<void>*>(this);
         _run_functor  = &detail::void_functor_run<FunctorType>::run;
       }
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) override { task_base::cancel(reason); }
-
-      aligned<FunctorSize> _functor;      
+      aligned<FunctorSize> _functor;
     private:
       ~task(){}
   };
 
 }
+

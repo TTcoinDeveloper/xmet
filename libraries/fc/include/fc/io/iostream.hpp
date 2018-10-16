@@ -9,7 +9,7 @@ namespace fc {
    *  Provides a fc::thread friendly cooperatively multi-tasked stream that
    *  will block 'cooperatively' instead of hard blocking.
    */
-  class istream
+  class istream 
   {
     public:
       virtual ~istream(){};
@@ -21,17 +21,14 @@ namespace fc {
        *  @throws fc::eof if at least 1 byte cannot be read
        **/
       virtual size_t     readsome( char* buf, size_t len ) = 0;
-      virtual size_t     readsome( const std::shared_ptr<char>& buf, size_t len, size_t offset ) = 0;
 
       /** read len bytes or throw, this method is implemented
        *  in terms of readsome.
        *
        *  @throws fc::eof_exception if len bytes cannot be read
        **/
-      istream&   read( char* buf, size_t len );
-      istream&   read( const std::shared_ptr<char>& buf, size_t len, size_t offset = 0 );
-      virtual char get();
-      void get( char& c ) { c = get(); }
+      istream&   read( char* buf, size_t len ); 
+      char       get();
   };
   typedef std::shared_ptr<istream> istream_ptr;
 
@@ -39,22 +36,20 @@ namespace fc {
    *  Provides a fc::thread friendly cooperatively multi-tasked stream that
    *  will block 'cooperatively' instead of hard blocking.
    */
-  class ostream
+  class ostream 
   {
      public:
        virtual ~ostream(){};
        virtual size_t     writesome( const char* buf, size_t len ) = 0;
-       virtual size_t     writesome( const std::shared_ptr<const char>& buf, size_t len, size_t offset ) = 0;
        virtual void       close() = 0;
        virtual void       flush() = 0;
 
        void put( char c ) { write(&c,1); }
-
+       
        /** implemented in terms of writesome, guarantees len bytes are sent
-        * but not flushed.
+        * but not flushed. 
         **/
        ostream&   write( const char* buf, size_t len );
-       ostream&   write( const std::shared_ptr<const char>& buf, size_t len, size_t offset = 0 );
   };
 
   typedef std::shared_ptr<ostream> ostream_ptr;
@@ -64,9 +59,9 @@ namespace fc {
   fc::istream& getline( fc::istream&, fc::string&, char delim = '\n' );
 
   template<size_t N>
-  ostream& operator<<( ostream& o, char (&array)[N] )
-  {
-     return o.write( array, N );
+  ostream& operator<<( ostream& o, char (&array)[N] ) 
+  { 
+     return o.write( array, N ); 
   }
 
   ostream& operator<<( ostream& o, char );

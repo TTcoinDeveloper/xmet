@@ -18,10 +18,9 @@ namespace fc {
       virtual iprocess& exec( const fc::path&  exe, 
                               std::vector<std::string>   args, 
                               const fc::path&  work_dir = fc::path(), 
-                              int              opts     = open_all    );
+                              exec_opts        opts     = open_all    );
 
-      
-      virtual int                        result(const microseconds& timeout = microseconds::maximum());
+      virtual int                        result();
       virtual void                       kill();
       virtual fc::buffered_ostream_ptr   in_stream();
       virtual fc::buffered_istream_ptr   out_stream();

@@ -15,13 +15,14 @@
 *.a
 *.lib
 
-# CMake->MSVC artifacts
+
+#CMake->MSVC artifacts
 *.sln
 *.vcxproj
 ALL_BUILD
 ZERO_CHECK
 
-# MSVC secondary artifacts
+#MSVC secondary artifacts
 *.suo
 *.vcxproj.filters
 *.vcxproj.user
@@ -33,22 +34,9 @@ ZERO_CHECK
 Debug/
 Release/
 
-CMakeCache.txt
 CMakeFiles
 Makefile
-*.cmake
-*.cbp
-
+cmake_install.cmake
 libfc.a
 libfc_debug.a
 
-*.sw*
-
-fc_automoc.cpp
-git_revision.cpp
-GitSHA3.cpp
-
-ntp_test
-task_cancel_test
-udt_client
-udt_server

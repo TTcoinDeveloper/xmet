@@ -1,11 +1,7 @@
 #include <fc/interprocess/mmap_struct.hpp>
-
 #include <fc/filesystem.hpp>
-
 #include <fc/io/fstream.hpp>
-
 #include <string.h>
-#include <algorithm>
 
 namespace fc
 {
@@ -33,10 +29,7 @@ namespace fc
                bytes_left -= to_write;
             }
          }
-
-         std::string filePath = file.to_native_ansi_path(); 
-
-         _file_mapping.reset( new fc::file_mapping( filePath.c_str(), fc::read_write ) );
+         _file_mapping.reset( new fc::file_mapping( file.generic_string().c_str(), fc::read_write ) );
          _mapped_region.reset( new fc::mapped_region( *_file_mapping, fc::read_write, 0, s ) );
       }
    } // namespace fc

@@ -15,17 +15,17 @@
  */
 namespace fc 
 {
-  class path;
 
     template <typename ssl_type>
     struct ssl_wrapper
     {
         ssl_wrapper(ssl_type* obj):obj(obj) {}
 
-        operator ssl_type*() { return obj; }
-        operator const ssl_type*() const { return obj; }
+        operator ssl_type*()
+        {
+            return obj;
+        }
         ssl_type* operator->() { return obj; }
-        const ssl_type* operator->() const { return obj; }
 
         ssl_type* obj;
     };
@@ -33,11 +33,10 @@ namespace fc
     #define SSL_TYPE(name, ssl_type, free_func) \
         struct name  : public ssl_wrapper<ssl_type> \
         { \
-            name(ssl_type* obj=nullptr) \
+            name(ssl_type* obj) \
               : ssl_wrapper(obj) {} \
             ~name() \
             { \
-                if( obj != nullptr ) \
                 free_func(obj); \
             } \
         };
@@ -55,13 +54,6 @@ namespace fc
         ~ssl_bignum() { BN_free(obj); }
     };
 
-    /** Allows to explicitly specify OpenSSL configuration file path to be loaded at OpenSSL library init.
-        If not set OpenSSL will try to load the conf. file (openssl.cnf) from the path it was
-        configured with what caused serious Keyhotee startup bugs on some Win7, Win8 machines.
-        \warning to be effective this method should be used before any part using OpenSSL, especially
-        before init_openssl call
-    */
-    void store_configuration_path(const path& filePath);
     int init_openssl();
 
 } // namespace fc
