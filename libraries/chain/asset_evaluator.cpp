@@ -1,81 +1,43 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.  All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The MIT License
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/chain/asset_evaluator.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/account_object.hpp>
-#include <graphene/chain/market_evaluator.hpp>
+#include <graphene/chain/market_object.hpp>
 #include <graphene/chain/database.hpp>
 #include <graphene/chain/exceptions.hpp>
 #include <graphene/chain/hardfork.hpp>
+#include <graphene/chain/is_authorized_asset.hpp>
 
 #include <functional>
 
 namespace graphene { namespace chain {
 
-/**
- *  Valid symbols can contain [A-Z0-9], and '.'
- *  They must start with [A, Z]
- *  They must end with [A, Z]
- *  They can contain a maximum of one '.'
- */
-bool is_valid_symbol_old( const string& symbol )
-{
-    if( symbol.size() < GRAPHENE_MIN_ASSET_SYMBOL_LENGTH )
-        return false;
-
-    if( symbol.size() > GRAPHENE_MAX_ASSET_SYMBOL_LENGTH )
-        return false;
-
-    if( !isalpha( symbol.front() ) )
-        return false;
-
-    if( !isalpha( symbol.back() ) )
-        return false;
-
-    bool dot_already_present = false;
-    for( const auto c : symbol )
-    {
-        if( (isalpha( c ) || isdigit(c)) && isupper( c ) )
-            continue;
-
-        if( c == '.' )
-        {
-            if( dot_already_present )
-                return false;
-
-            dot_already_present = true;
-            continue;
-        }
-
-        return false;
-    }
-
-    return true;
-}
-
 void_result asset_create_evaluator::do_evaluate( const asset_create_operation& op )
 { try {
 
    database& d = db();
-
-#ifdef _MSC_VER
-# pragma message ("WARNING:HARDFORK remove this check after HARDFORK_359_TIME and rename is_valid_symbol_old -> is_valid_symbol")
-#else
-# warning HARDFORK remove this check after HARDFORK_359_TIME and rename is_valid_symbol_old -> is_valid_symbol
-#endif
-   if( d.head_block_time() <= HARDFORK_359_TIME )
-   {
-      FC_ASSERT( is_valid_symbol_old( op.symbol ) );
-   }
 
    const auto& chain_parameters = d.get_global_properties().parameters;
    FC_ASSERT( op.common_options.whitelist_authorities.size() <= chain_parameters.maximum_asset_whitelist_authorities );
@@ -87,9 +49,36 @@ void_result asset_create_evaluator::do_evaluate( const asset_create_operation& o
    for( auto id : op.common_options.blacklist_authorities )
       d.get_object(id);
 
-   auto& asset_indx = db().get_index_type<asset_index>().indices().get<by_symbol>();
+   auto& asset_indx = d.get_index_type<asset_index>().indices().get<by_symbol>();
    auto asset_symbol_itr = asset_indx.find( op.symbol );
    FC_ASSERT( asset_symbol_itr == asset_indx.end() );
+
+   if( d.head_block_time() <= HARDFORK_409_TIME )
+   {
+      auto dotpos = op.symbol.find( '.' );
+      if( dotpos != std::string::npos )
+      {
+         auto prefix = op.symbol.substr( 0, dotpos );
+         auto asset_symbol_itr = asset_indx.find( op.symbol );
+         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                    ("s",op.symbol)("p",prefix) );
+         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+      }
+   }
+   else
+   {
+      auto dotpos = op.symbol.rfind( '.' );
+      if( dotpos != std::string::npos )
+      {
+         auto prefix = op.symbol.substr( 0, dotpos );
+         auto asset_symbol_itr = asset_indx.find( prefix );
+         FC_ASSERT( asset_symbol_itr != asset_indx.end(), "Asset ${s} may only be created by issuer of ${p}, but ${p} has not been registered",
+                    ("s",op.symbol)("p",prefix) );
+         FC_ASSERT( asset_symbol_itr->issuer == op.issuer, "Asset ${s} may only be created by issuer of ${p}, ${i}",
+                    ("s",op.symbol)("p",prefix)("i", op.issuer(d).name) );
+      }
+   }
 
    core_fee_paid -= core_fee_paid.value/2;
 
@@ -157,18 +146,14 @@ object_id_type asset_create_evaluator::do_apply( const asset_create_operation& o
 
 void_result asset_issue_evaluator::do_evaluate( const asset_issue_operation& o )
 { try {
-   database& d   = db();
+   const database& d = db();
 
    const asset_object& a = o.asset_to_issue.asset_id(d);
    FC_ASSERT( o.issuer == a.issuer );
    FC_ASSERT( !a.is_market_issued(), "Cannot manually issue a market-issued asset." );
 
    to_account = &o.issue_to_account(d);
-
-   if( a.options.flags & white_list )
-   {
-      FC_ASSERT( to_account->is_authorized_asset( a ) );
-   }
+   FC_ASSERT( is_authorized_asset( d, *to_account, a ) );
 
    asset_dyn_data = &a.dynamic_asset_data_id(d);
    FC_ASSERT( (asset_dyn_data->current_supply + o.asset_to_issue.amount) <= a.options.max_supply );
@@ -189,7 +174,7 @@ void_result asset_issue_evaluator::do_apply( const asset_issue_operation& o )
 
 void_result asset_reserve_evaluator::do_evaluate( const asset_reserve_operation& o )
 { try {
-   database& d   = db();
+   const database& d = db();
 
    const asset_object& a = o.amount_to_reserve.asset_id(d);
    GRAPHENE_ASSERT(
@@ -200,11 +185,7 @@ void_result asset_reserve_evaluator::do_evaluate( const asset_reserve_operation&
    );
 
    from_account = &o.payer(d);
-
-   if( a.options.flags & white_list )
-   {
-      FC_ASSERT( from_account->is_authorized_asset( a ) );
-   }
+   FC_ASSERT( is_authorized_asset( d, *from_account, a ) );
 
    asset_dyn_data = &a.dynamic_asset_data_id(d);
    FC_ASSERT( (asset_dyn_data->current_supply - o.amount_to_reserve.amount) >= 0 );
@@ -271,9 +252,12 @@ void_result asset_update_evaluator::do_evaluate(const asset_update_operation& o)
       }
    }
 
-   // new issuer_permissions must be subset of old issuer permissions
-   FC_ASSERT(!(o.new_options.issuer_permissions & ~a.options.issuer_permissions),
-             "Cannot reinstate previously revoked issuer permissions on an asset.");
+   if( (d.head_block_time() < HARDFORK_572_TIME) || (a.dynamic_asset_data_id(d).current_supply != 0) )
+   {
+      // new issuer_permissions must be subset of old issuer permissions
+      FC_ASSERT(!(o.new_options.issuer_permissions & ~a.options.issuer_permissions),
+                "Cannot reinstate previously revoked issuer permissions on an asset.");
+   }
 
    // changed flags must be subset of old issuer permissions
    FC_ASSERT(!((o.new_options.flags ^ a.options.flags) & ~a.options.issuer_permissions),
@@ -505,100 +489,22 @@ void_result asset_publish_feeds_evaluator::do_evaluate(const asset_publish_feed_
    const asset_bitasset_data_object& bitasset = base.bitasset_data(d);
    FC_ASSERT( !bitasset.has_settlement(), "No further feeds may be published after a settlement event" );
 
-#ifdef _MSC_VER
-# pragma message ("WARNING: Remove this check when starting a new network")
-#else
-# warning Remove this check when starting a new network
-#endif
-   if( d.head_block_time() <= HARDFORK_357_TIME )
+   FC_ASSERT( o.feed.settlement_price.quote.asset_id == bitasset.options.short_backing_asset );
+   if( d.head_block_time() > HARDFORK_480_TIME )
    {
-      FC_ASSERT(o.feed.settlement_price.quote.asset_id == bitasset.options.short_backing_asset);
-
-      try
+      if( !o.feed.core_exchange_rate.is_null() )
       {
-         // these two changes should go in price_feed::validate() when creating new network
-         if( !o.feed.core_exchange_rate.is_null() )
-         {
-            o.feed.core_exchange_rate.validate();
-         }
-         if( (!o.feed.settlement_price.is_null()) && (!o.feed.core_exchange_rate.is_null()) )
-         {
-            if( o.feed.settlement_price.base.asset_id == o.feed.core_exchange_rate.base.asset_id )
-            {
-               // uncrossed feed, this is the form we expect
-               FC_ASSERT( o.feed.settlement_price.base.asset_id == o.feed.core_exchange_rate.base.asset_id );
-               FC_ASSERT( o.feed.settlement_price.quote.asset_id == o.feed.core_exchange_rate.quote.asset_id );
-            }
-            else
-            {
-               // crossed feed, your feed script needs to be fixed
-               FC_ASSERT( o.feed.settlement_price.base.asset_id == o.feed.core_exchange_rate.quote.asset_id );
-               FC_ASSERT( o.feed.settlement_price.quote.asset_id == o.feed.core_exchange_rate.base.asset_id );
-               /*
-               wlog( "${aname} feed pub with crossed prices by ${name} in block ${n}",
-                  ("aname", base.symbol)
-                  ("n", d.head_block_num()+1)
-                  ("name", o.publisher(d).name)
-                  );
-               */
-            }
-         }
-
-         if( !o.feed.is_for( o.asset_id ) )
-         {
-            wlog( "${aname} feed pub with wrong asset by ${name} in block ${n}",
-               ("aname", base.symbol)
-               ("n", d.head_block_num()+1)
-               ("name", o.publisher(d).name)
-               );
-         }
-      }
-      catch( const fc::exception& e )
-      {
-         wlog( "${aname} feed pub with invalid price feed by ${name} in block ${n}",
-               ("aname", base.symbol)
-               ("n", d.head_block_num()+1)
-               ("name", o.publisher(d).name)
-               );
-         wdump( (e) );
-      }
-
-#ifdef _MSC_VER
-# pragma message ("WARNING: Remove this check when starting a new network")
-#else
-# warning Remove this check when starting a new network
-#endif
-      if( d.head_block_num() > 59300 )
-      {
-         FC_ASSERT(
-               (base.symbol != "SEK")
-            && (base.symbol != "SILVER")
-            && (base.symbol != "RUB")
-            && (base.symbol != "GBP")
-            );
+         FC_ASSERT( o.feed.core_exchange_rate.quote.asset_id == asset_id_type() );
       }
    }
    else
    {
-      //
-      // many of these checks should be moved to price_feed.validate()
-      // or the operation validator when new network is started
-      //
-      if( !o.feed.core_exchange_rate.is_null() )
-      {
-         o.feed.core_exchange_rate.validate();
-      }
       if( (!o.feed.settlement_price.is_null()) && (!o.feed.core_exchange_rate.is_null()) )
       {
-         FC_ASSERT( o.feed.settlement_price.base.asset_id == o.feed.core_exchange_rate.base.asset_id );
          FC_ASSERT( o.feed.settlement_price.quote.asset_id == o.feed.core_exchange_rate.quote.asset_id );
       }
-
-      FC_ASSERT( !o.feed.settlement_price.is_null() );
-      FC_ASSERT( !o.feed.core_exchange_rate.is_null() );
-      FC_ASSERT( o.feed.settlement_price.quote.asset_id == bitasset.options.short_backing_asset );
-      FC_ASSERT( o.feed.is_for( o.asset_id ) );
    }
+
    //Verify that the publisher is authoritative to publish a feed
    if( base.options.flags & witness_fed_asset )
    {
@@ -619,17 +525,6 @@ void_result asset_publish_feeds_evaluator::do_evaluate(const asset_publish_feed_
 void_result asset_publish_feeds_evaluator::do_apply(const asset_publish_feed_operation& o)
 { try {
 
-#ifdef _MSC_VER
-# pragma message ("WARNING: Remove this check when preparing for new network release")
-#else
-# warning Remove this check when preparing for new network release
-#endif
-   if( !o.feed.is_for( o.asset_id ) )
-   {
-      wlog( "Ignoring bad feed" );
-      return void_result();
-   }
-
    database& d = db();
 
    const asset_object& base = o.asset_id(d);
@@ -647,5 +542,33 @@ void_result asset_publish_feeds_evaluator::do_apply(const asset_publish_feed_ope
 
    return void_result();
 } FC_CAPTURE_AND_RETHROW((o)) }
+
+
+
+void_result asset_claim_fees_evaluator::do_evaluate( const asset_claim_fees_operation& o )
+{ try {
+   FC_ASSERT( db().head_block_time() > HARDFORK_413_TIME );
+   FC_ASSERT( o.amount_to_claim.asset_id(db()).issuer == o.issuer, "Asset fees may only be claimed by the issuer" );
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (o) ) }
+
+
+void_result asset_claim_fees_evaluator::do_apply( const asset_claim_fees_operation& o )
+{ try {
+   database& d = db();
+
+   const asset_object& a = o.amount_to_claim.asset_id(d);
+   const asset_dynamic_data_object& addo = a.dynamic_asset_data_id(d);
+   FC_ASSERT( o.amount_to_claim.amount <= addo.accumulated_fees, "Attempt to claim more fees than have accumulated", ("addo",addo) );
+
+   d.modify( addo, [&]( asset_dynamic_data_object& _addo  ) {
+     _addo.accumulated_fees -= o.amount_to_claim.amount;
+   });
+
+   d.adjust_balance( o.issuer, o.amount_to_claim );
+
+   return void_result();
+} FC_CAPTURE_AND_RETHROW( (o) ) }
+
 
 } } // graphene::chain

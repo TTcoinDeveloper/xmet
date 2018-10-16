@@ -1,13 +1,25 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.  All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The MIT License
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <graphene/chain/protocol/asset_ops.hpp>
 
@@ -118,6 +130,20 @@ void asset_publish_feed_operation::validate()const
 {
    FC_ASSERT( fee.amount >= 0 );
    feed.validate();
+
+   // maybe some of these could be moved to feed.validate()
+   if( !feed.core_exchange_rate.is_null() )
+   {
+      feed.core_exchange_rate.validate();
+   }
+   if( (!feed.settlement_price.is_null()) && (!feed.core_exchange_rate.is_null()) )
+   {
+      FC_ASSERT( feed.settlement_price.base.asset_id == feed.core_exchange_rate.base.asset_id );
+   }
+
+   FC_ASSERT( !feed.settlement_price.is_null() );
+   FC_ASSERT( !feed.core_exchange_rate.is_null() );
+   FC_ASSERT( feed.is_for( asset_id ) );
 }
 
 void asset_reserve_operation::validate()const
@@ -132,7 +158,7 @@ void asset_issue_operation::validate()const
    FC_ASSERT( fee.amount >= 0 );
    FC_ASSERT( asset_to_issue.amount.value <= GRAPHENE_MAX_SHARE_SUPPLY );
    FC_ASSERT( asset_to_issue.amount.value > 0 );
-   FC_ASSERT( asset_to_issue.asset_id != 0 );
+   FC_ASSERT( asset_to_issue.asset_id != asset_id_type(0) );
 }
 
 void asset_fund_fee_pool_operation::validate() const
@@ -198,6 +224,11 @@ void asset_options::validate()const
    {
       FC_ASSERT( whitelist_markets.find(item) == whitelist_markets.end() );
    }
+}
+
+void asset_claim_fees_operation::validate()const {
+   FC_ASSERT( fee.amount >= 0 );
+   FC_ASSERT( amount_to_claim.amount > 0 );
 }
 
 } } // namespace graphene::chain

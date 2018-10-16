@@ -2,12 +2,12 @@
 project( Graphene )
 cmake_minimum_required( VERSION 2.8.12 )
 
-set( BLOCKCHAIN_NAME "Meta" )
+set( BLOCKCHAIN_NAME "Graphene" )
 
 set( CLI_CLIENT_EXECUTABLE_NAME graphene_client )
 set( GUI_CLIENT_EXECUTABLE_NAME Graphene )
 set( CUSTOM_URL_SCHEME "gcs" )
-set( INSTALLER_APP_ID "68ad7005-8eee-49c9-95ce-9eed97e5b346" )
+set( INSTALLER_APP_ID "68ad7005-8eee-49c9-95ce-9eed97e5b347" )
 
 # http://stackoverflow.com/a/18369825
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
@@ -36,49 +36,6 @@ list( APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libraries/fc/GitVers
 include( GetGitRevisionDescription )
 get_git_head_revision( GIT_REFSPEC GIT_SHA2 )
 
-SET (BOOST_ROOT "C:/boost_1_55_0")
-SET (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost")
-SET (BOOST_LIBRARIES "C:/boost_1_55_0/libs")
-SET (BOOST_LIBRARIES "C:/boost_1_55_0/lib")
-SET (BOOST_LIBRARIES "C:/boost_1_55_0/boost")
-
-SET (ZLIB_ROOT_DIR "C:/zlib-1.2.8")
-SET (ZLIB_INCLUDE_DIR "C:/zlib-1.2.8/contrib")
-SET (ZLIB_LIBRARIES "C:/zlib-1.2.8")
-
-SET (CURSES_ROOT "C:/PDCurses-3.6")
-SET (CURSES_LIBRARY "C:/PDCurses-3.6/pdcurses")
-SET (Readline_ROOT "C:/readline")
-SET (Readline_INCLUDE_DIR "C:/readline/include")
-SET (Readline_LIBRARY "C:/readline/lib")
-SET (Readline_LIBRARY "C:/readline")
-
-
-SET (OPENSSL_ROOT_DIR "C:/openssl-1.0.1e")
-SET (OPENSSL_INCLUDE_DIR "C:/openssl-1.0.1e/include")
-SET (OPENSSL_LIBRARIES "C:/openssl-1.0.1e")
- 
-SET (BDB_ROOT_DIR "C:/db-4.8.30.NC")
-SET (BDB_INCLUDE_DIR "C:/db-4.8.30.NC/include")
-SET (BDB_LIBRARIES "C:/db-4.8.30.NC/include")
-
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/stage/lib")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/thread")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/date_time")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/system")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/filesystem")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/program_options")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/signals")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/container")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/serialization")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/chrono")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/unit_test_framework")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/context")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/locale")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/coroutine")
-set (BOOST_INCLUDE_DIR "C:/boost_1_55_0/include/boost-1_55/boost/container")
-
 SET(BOOST_COMPONENTS)
 LIST(APPEND BOOST_COMPONENTS thread
                              date_time
@@ -99,9 +56,9 @@ IF( WIN32 )
   set(BOOST_ALL_DYN_LINK OFF) # force dynamic linking for all libraries
 ENDIF(WIN32)
 
-FIND_PACKAGE(Boost 1.55 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+FIND_PACKAGE(Boost 1.57 REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 # For Boost 1.53 on windows, coroutine was not in BOOST_LIBRARYDIR and do not need it to build,  but if boost versin >= 1.54, find coroutine otherwise will cause link errors
-IF(NOT "${Boost_VERSION}" MATCHES "1.55(.*)")
+IF(NOT "${Boost_VERSION}" MATCHES "1.53(.*)")
    SET(BOOST_LIBRARIES_TEMP ${Boost_LIBRARIES})
    FIND_PACKAGE(Boost 1.54 REQUIRED COMPONENTS coroutine)
    LIST(APPEND BOOST_COMPONENTS coroutine)

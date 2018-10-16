@@ -1,7 +1,0 @@
-﻿  Building Custom Rule C:/xmet/tests/CMakeLists.txt
-  CMake does not need to re-run because C:\xmet\tests\CMakeFiles\generate.stamp is up-to-date.
-  main.cpp
-  Unknown compiler version - please run the configure tests and report the results
-c:\xmet\libraries\db\include\graphene\db\undo_database.hpp(57): warning C4297: 'graphene::db::undo_database::session::~session': function assumed not to throw an exception but does
-  c:\xmet\libraries\db\include\graphene\db\undo_database.hpp(57): note: destructor or deallocator has a (possibly implicit) non-throwing exception specification
-c:\xmet\tests\app\main.cpp(19): fatal error C1083: Cannot open include file: 'graphene/utilities/tempdir.hpp': No such file or directory

@@ -1,13 +1,25 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.  All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The MIT License
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #include <algorithm>
 #include <cctype>
@@ -17,6 +29,10 @@
 #include <sstream>
 #include <string>
 #include <list>
+
+#include <boost/version.hpp>
+#include <boost/lexical_cast.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/algorithm_ext/erase.hpp>
@@ -32,6 +48,7 @@
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 
+#include <fc/git_revision.hpp>
 #include <fc/io/fstream.hpp>
 #include <fc/io/json.hpp>
 #include <fc/io/stdio.hpp>
@@ -46,11 +63,13 @@
 #include <graphene/app/api.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/protocol/fee_schedule.hpp>
+#include <graphene/utilities/git_revision.hpp>
 #include <graphene/utilities/key_conversion.hpp>
 #include <graphene/utilities/words.hpp>
 #include <graphene/wallet/wallet.hpp>
 #include <graphene/wallet/api_documentation.hpp>
 #include <graphene/wallet/reflect_util.hpp>
+#include <graphene/debug_witness/debug_api.hpp>
 #include <fc/smart_ref_impl.hpp>
 
 #ifndef WIN32
@@ -63,6 +82,19 @@
 namespace graphene { namespace wallet {
 
 namespace detail {
+
+struct operation_result_printer
+{
+public:
+   operation_result_printer( const wallet_api_impl& w )
+      : _wallet(w) {}
+   const wallet_api_impl& _wallet;
+   typedef std::string result_type;
+
+   std::string operator()(const void_result& x) const;
+   std::string operator()(const object_id_type& oid);
+   std::string operator()(const asset& a);
+};
 
 // BLOCK  TRX  OP  VOP
 struct operation_printer
@@ -249,7 +281,7 @@ private:
       auto iter = _wallet.pending_witness_registrations.find(witness_name);
       FC_ASSERT(iter != _wallet.pending_witness_registrations.end());
       std::string wif_key = iter->second;
-      
+
       // get the list key id this key is registered with in the chain
       fc::optional<fc::ecc::private_key> witness_private_key = wif_to_key(wif_key);
       FC_ASSERT(witness_private_key);
@@ -285,12 +317,12 @@ private:
             if( optional_account )
                claim_registered_account(*optional_account);
       }
-      
+
       if (!_wallet.pending_witness_registrations.empty())
       {
          // make a vector of the owner accounts for witnesses pending registration
          std::vector<string> pending_witness_names = boost::copy_range<std::vector<string> >(boost::adaptors::keys(_wallet.pending_witness_registrations));
-      
+
          // look up the owners on the blockchain
          std::vector<fc::optional<graphene::chain::account_object>> owner_account_objects = _remote_db->lookup_account_names(pending_witness_names);
 
@@ -334,9 +366,9 @@ private:
 
    // if the user executes the same command twice in quick succession,
    // we might generate the same transaction id, and cause the second
-   // transaction to be rejected.  This can be avoided by altering the 
+   // transaction to be rejected.  This can be avoided by altering the
    // second transaction slightly (bumping up the expiration time by
-   // a second).  Keep track of recent transaction ids we've generated 
+   // a second).  Keep track of recent transaction ids we've generated
    // so we can know if we need to do this
    struct recently_generated_transaction_record
    {
@@ -346,7 +378,7 @@ private:
    struct timestamp_index{};
    typedef boost::multi_index_container<recently_generated_transaction_record,
                                         boost::multi_index::indexed_by<boost::multi_index::hashed_unique<boost::multi_index::member<recently_generated_transaction_record,
-                                                                                                                                    graphene::chain::transaction_id_type, 
+                                                                                                                                    graphene::chain::transaction_id_type,
                                                                                                                                     &recently_generated_transaction_record::transaction_id>,
                                                                                                          std::hash<graphene::chain::transaction_id_type> >,
                                                                        boost::multi_index::ordered_non_unique<boost::multi_index::tag<timestamp_index>,
@@ -484,6 +516,41 @@ public:
       result["active_committee_members"] = global_props.active_committee_members;
       return result;
    }
+
+   variant_object about() const
+   {
+      string client_version( graphene::utilities::git_revision_description );
+      const size_t pos = client_version.find( '/' );
+      if( pos != string::npos && client_version.size() > pos )
+         client_version = client_version.substr( pos + 1 );
+
+      fc::mutable_variant_object result;
+      //result["blockchain_name"]        = BLOCKCHAIN_NAME;
+      //result["blockchain_description"] = BTS_BLOCKCHAIN_DESCRIPTION;
+      result["client_version"]           = client_version;
+      result["graphene_revision"]        = graphene::utilities::git_revision_sha;
+      result["graphene_revision_age"]    = fc::get_approximate_relative_time_string( fc::time_point_sec( graphene::utilities::git_revision_unix_timestamp ) );
+      result["fc_revision"]              = fc::git_revision_sha;
+      result["fc_revision_age"]          = fc::get_approximate_relative_time_string( fc::time_point_sec( fc::git_revision_unix_timestamp ) );
+      result["compile_date"]             = "compiled on " __DATE__ " at " __TIME__;
+      result["boost_version"]            = boost::replace_all_copy(std::string(BOOST_LIB_VERSION), "_", ".");
+      result["openssl_version"]          = OPENSSL_VERSION_TEXT;
+
+      std::string bitness = boost::lexical_cast<std::string>(8 * sizeof(int*)) + "-bit";
+#if defined(__APPLE__)
+      std::string os = "osx";
+#elif defined(__linux__)
+      std::string os = "linux";
+#elif defined(_MSC_VER)
+      std::string os = "win32";
+#else
+      std::string os = "other";
+#endif
+      result["build"] = os + " " + bitness;
+
+      return result;
+   }
+
    chain_property_object get_chain_properties() const
    {
       return _remote_db->get_chain_properties();
@@ -620,7 +687,7 @@ public:
       if (!optional_private_key)
          FC_THROW("Invalid private key");
       graphene::chain::public_key_type wif_pub_key = optional_private_key->get_public_key();
-      
+
       account_object account = get_account( account_name_or_id );
 
       // make a list of all current public keys for the named account
@@ -799,9 +866,10 @@ public:
 
       return _builder_transactions[transaction_handle] = sign_transaction(_builder_transactions[transaction_handle], broadcast);
    }
-   signed_transaction propose_builder_transaction(transaction_handle_type handle,
-                                                  time_point_sec expiration = time_point::now() + fc::minutes(1),
-                                                  uint32_t review_period_seconds = 0, bool broadcast = true)
+   signed_transaction propose_builder_transaction(
+      transaction_handle_type handle,
+      time_point_sec expiration = time_point::now() + fc::minutes(1),
+      uint32_t review_period_seconds = 0, bool broadcast = true)
    {
       FC_ASSERT(_builder_transactions.count(handle));
       proposal_create_operation op;
@@ -816,6 +884,28 @@ public:
 
       return trx = sign_transaction(trx, broadcast);
    }
+
+   signed_transaction propose_builder_transaction2(
+      transaction_handle_type handle,
+      string account_name_or_id,
+      time_point_sec expiration = time_point::now() + fc::minutes(1),
+      uint32_t review_period_seconds = 0, bool broadcast = true)
+   {
+      FC_ASSERT(_builder_transactions.count(handle));
+      proposal_create_operation op;
+      op.fee_paying_account = get_account(account_name_or_id).get_id();
+      op.expiration_time = expiration;
+      signed_transaction& trx = _builder_transactions[handle];
+      std::transform(trx.operations.begin(), trx.operations.end(), std::back_inserter(op.proposed_ops),
+                     [](const operation& op) -> op_wrapper { return op; });
+      if( review_period_seconds )
+         op.review_period_seconds = review_period_seconds;
+      trx.operations = {op};
+      _remote_db->get_global_properties().parameters.current_fees->set_fee( trx.operations.front() );
+
+      return trx = sign_transaction(trx, broadcast);
+   }
+
    void remove_builder_transaction(transaction_handle_type handle)
    {
       _builder_transactions.erase(handle);
@@ -827,13 +917,17 @@ public:
                                        public_key_type active,
                                        string  registrar_account,
                                        string  referrer_account,
-                                       uint8_t referrer_percent,
+                                       uint32_t referrer_percent,
                                        bool broadcast = false)
    { try {
       FC_ASSERT( !self.is_locked() );
       FC_ASSERT( is_valid_name(name) );
       account_create_operation account_create_op;
 
+      // #449 referrer_percent is on 0-100 scale, if user has larger
+      // number it means their script is using GRAPHENE_100_PERCENT scale
+      // instead of 0-100 scale.
+      FC_ASSERT( referrer_percent <= 100 );
       // TODO:  process when pay_from_account is ID
 
       account_object registrar_account_object =
@@ -845,7 +939,7 @@ public:
       account_object referrer_account_object =
             this->get_account( referrer_account );
       account_create_op.referrer = referrer_account_object.id;
-      account_create_op.referrer_percent = referrer_percent;
+      account_create_op.referrer_percent = uint16_t( referrer_percent * GRAPHENE_1_PERCENT );
 
       account_create_op.registrar = registrar_account_id;
       account_create_op.name = name;
@@ -949,7 +1043,7 @@ public:
    { try {
          int active_key_index = find_first_unused_derived_key_index(owner_privkey);
          fc::ecc::private_key active_privkey = derive_private_key( key_to_wif(owner_privkey), active_key_index);
-         
+
          int memo_key_index = find_first_unused_derived_key_index(active_privkey);
          fc::ecc::private_key memo_privkey = derive_private_key( key_to_wif(active_privkey), memo_key_index);
 
@@ -1257,7 +1351,7 @@ public:
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (authorizing_account)(account_to_list)(new_listing_status)(broadcast) ) }
 
-   signed_transaction create_committee_member(string owner_account, string url, 
+   signed_transaction create_committee_member(string owner_account, string url,
                                       bool broadcast /* = false */)
    { try {
 
@@ -1277,7 +1371,7 @@ public:
 
    witness_object get_witness(string owner_account)
    {
-      try 
+      try
       {
          fc::optional<witness_id_type> witness_id = maybe_id<witness_id_type>(owner_account);
          if (witness_id)
@@ -1312,7 +1406,7 @@ public:
 
    committee_member_object get_committee_member(string owner_account)
    {
-      try 
+      try
       {
          fc::optional<committee_member_id_type> committee_member_id = maybe_id<committee_member_id_type>(owner_account);
          if (committee_member_id)
@@ -1367,7 +1461,7 @@ public:
       tx.operations.push_back( witness_create_op );
       set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees);
       tx.validate();
-         
+
       _wallet.pending_witness_registrations[owner_account] = key_to_wif(witness_private_key);
 
       return sign_transaction( tx, broadcast );
@@ -1397,6 +1491,122 @@ public:
 
       return sign_transaction( tx, broadcast );
    } FC_CAPTURE_AND_RETHROW( (witness_name)(url)(block_signing_key)(broadcast) ) }
+
+   template<typename WorkerInit>
+   static WorkerInit _create_worker_initializer( const variant& worker_settings )
+   {
+      WorkerInit result;
+      from_variant( worker_settings, result );
+      return result;
+   }
+
+   signed_transaction create_worker(
+      string owner_account,
+      time_point_sec work_begin_date,
+      time_point_sec work_end_date,
+      share_type daily_pay,
+      string name,
+      string url,
+      variant worker_settings,
+      bool broadcast
+      )
+   {
+      worker_initializer init;
+      std::string wtype = worker_settings["type"].get_string();
+
+      // TODO:  Use introspection to do this dispatch
+      if( wtype == "burn" )
+         init = _create_worker_initializer< burn_worker_initializer >( worker_settings );
+      else if( wtype == "refund" )
+         init = _create_worker_initializer< refund_worker_initializer >( worker_settings );
+      else if( wtype == "vesting" )
+         init = _create_worker_initializer< vesting_balance_worker_initializer >( worker_settings );
+      else
+      {
+         FC_ASSERT( false, "unknown worker[\"type\"] value" );
+      }
+
+      worker_create_operation op;
+      op.owner = get_account( owner_account ).id;
+      op.work_begin_date = work_begin_date;
+      op.work_end_date = work_end_date;
+      op.daily_pay = daily_pay;
+      op.name = name;
+      op.url = url;
+      op.initializer = init;
+
+      signed_transaction tx;
+      tx.operations.push_back( op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   }
+
+   signed_transaction update_worker_votes(
+      string account,
+      worker_vote_delta delta,
+      bool broadcast
+      )
+   {
+      account_object acct = get_account( account );
+      account_update_operation op;
+
+      // you could probably use a faster algorithm for this, but flat_set is fast enough :)
+      flat_set< worker_id_type > merged;
+      merged.reserve( delta.vote_for.size() + delta.vote_against.size() + delta.vote_abstain.size() );
+      for( const worker_id_type& wid : delta.vote_for )
+      {
+         bool inserted = merged.insert( wid ).second;
+         FC_ASSERT( inserted, "worker ${wid} specified multiple times", ("wid", wid) );
+      }
+      for( const worker_id_type& wid : delta.vote_against )
+      {
+         bool inserted = merged.insert( wid ).second;
+         FC_ASSERT( inserted, "worker ${wid} specified multiple times", ("wid", wid) );
+      }
+      for( const worker_id_type& wid : delta.vote_abstain )
+      {
+         bool inserted = merged.insert( wid ).second;
+         FC_ASSERT( inserted, "worker ${wid} specified multiple times", ("wid", wid) );
+      }
+
+      // should be enforced by FC_ASSERT's above
+      assert( merged.size() == delta.vote_for.size() + delta.vote_against.size() + delta.vote_abstain.size() );
+
+      vector< object_id_type > query_ids;
+      for( const worker_id_type& wid : merged )
+         query_ids.push_back( wid );
+
+      flat_set<vote_id_type> new_votes( acct.options.votes );
+
+      fc::variants objects = _remote_db->get_objects( query_ids );
+      for( const variant& obj : objects )
+      {
+         worker_object wo;
+         from_variant( obj, wo );
+         new_votes.erase( wo.vote_for );
+         new_votes.erase( wo.vote_against );
+         if( delta.vote_for.find( wo.id ) != delta.vote_for.end() )
+            new_votes.insert( wo.vote_for );
+         else if( delta.vote_against.find( wo.id ) != delta.vote_against.end() )
+            new_votes.insert( wo.vote_against );
+         else
+            assert( delta.vote_abstain.find( wo.id ) != delta.vote_abstain.end() );
+      }
+
+      account_update_operation update_op;
+      update_op.account = acct.id;
+      update_op.new_options = acct.options;
+      update_op.new_options->votes = new_votes;
+
+      signed_transaction tx;
+      tx.operations.push_back( update_op );
+      set_operation_fees( tx, _remote_db->get_global_properties().parameters.current_fees );
+      tx.validate();
+
+      return sign_transaction( tx, broadcast );
+   }
 
    vector< vesting_balance_object_with_info > get_vesting_balances( string account_name )
    { try {
@@ -1565,7 +1775,7 @@ public:
 
       if (account_object_to_modify.options.num_witness == desired_number_of_witnesses &&
           account_object_to_modify.options.num_committee == desired_number_of_committee_members)
-         FC_THROW("Account ${account} is already voting for ${witnesses} witnesses and ${committee_members} committee_members", 
+         FC_THROW("Account ${account} is already voting for ${witnesses} witnesses and ${committee_members} committee_members",
                   ("account", account_to_modify)("witnesses", desired_number_of_witnesses)("committee_members",desired_number_of_witnesses));
       account_object_to_modify.options.num_witness = desired_number_of_witnesses;
       account_object_to_modify.options.num_committee = desired_number_of_committee_members;
@@ -1776,8 +1986,8 @@ public:
          limit_order_cancel_operation op;
          op.fee_paying_account = get_object<limit_order_object>(order_id).seller;
          op.order = order_id;
-         set_operation_fees( trx, _remote_db->get_global_properties().parameters.current_fees);
          trx.operations = {op};
+         set_operation_fees( trx, _remote_db->get_global_properties().parameters.current_fees);
 
          trx.validate();
          return sign_transaction(trx, broadcast);
@@ -1952,9 +2162,93 @@ public:
          for( auto& r : records )
          {
             asset_object as = get_asset( r.amount.asset_id );
-            ss << fc::get_approximate_relative_time_string( r.date ) 
+            ss << fc::get_approximate_relative_time_string( r.date )
                << "  " << as.amount_to_pretty_string( r.amount ) << "  " << r.from_label << "  =>  " << r.to_label  << "  " << r.memo <<"\n";
          }
+         return ss.str();
+      };
+      m["get_order_book"] = [this](variant result, const fc::variants& a)
+      {
+         auto orders = result.as<order_book>();
+         auto bids = orders.bids;
+         auto asks = orders.asks;
+         std::stringstream ss;
+         std::stringstream sum_stream;
+         sum_stream << "Sum(" << orders.base << ')';
+         double bid_sum = 0;
+         double ask_sum = 0;
+         const int spacing = 20;
+
+         auto prettify_num = [&]( double n )
+         {
+            //ss << n;
+            if (abs( round( n ) - n ) < 0.00000000001 )
+            {
+               //ss << setiosflags( !ios::fixed ) << (int) n;     // doesn't compile on Linux with gcc
+               ss << (int) n;
+            }
+            else if (n - floor(n) < 0.000001)
+            {
+               ss << setiosflags( ios::fixed ) << setprecision(10) << n;
+            }
+            else
+            {
+               ss << setiosflags( ios::fixed ) << setprecision(6) << n;
+            }
+         };
+
+         ss << setprecision( 8 ) << setiosflags( ios::fixed ) << setiosflags( ios::left );
+
+         ss << ' ' << setw( (spacing * 4) + 6 ) << "BUY ORDERS" << "SELL ORDERS\n"
+            << ' ' << setw( spacing + 1 ) << "Price" << setw( spacing ) << orders.quote << ' ' << setw( spacing )
+            << orders.base << ' ' << setw( spacing ) << sum_stream.str()
+            << "   " << setw( spacing + 1 ) << "Price" << setw( spacing ) << orders.quote << ' ' << setw( spacing )
+            << orders.base << ' ' << setw( spacing ) << sum_stream.str()
+            << "\n====================================================================================="
+            << "|=====================================================================================\n";
+
+         for (int i = 0; i < bids.size() || i < asks.size() ; i++)
+         {
+            if ( i < bids.size() )
+            {
+                bid_sum += bids[i].base;
+                ss << ' ' << setw( spacing );
+                prettify_num( bids[i].price );
+                ss << ' ' << setw( spacing );
+                prettify_num( bids[i].quote );
+                ss << ' ' << setw( spacing );
+                prettify_num( bids[i].base );
+                ss << ' ' << setw( spacing );
+                prettify_num( bid_sum );
+                ss << ' ';
+            }
+            else
+            {
+                ss << setw( (spacing * 4) + 5 ) << ' ';
+            }
+
+            ss << '|';
+
+            if ( i < asks.size() )
+            {
+               ask_sum += asks[i].base;
+               ss << ' ' << setw( spacing );
+               prettify_num( asks[i].price );
+               ss << ' ' << setw( spacing );
+               prettify_num( asks[i].quote );
+               ss << ' ' << setw( spacing );
+               prettify_num( asks[i].base );
+               ss << ' ' << setw( spacing );
+               prettify_num( ask_sum );
+            }
+
+            ss << '\n';
+         }
+
+         ss << endl
+            << "Buy Total:  " << bid_sum << ' ' << orders.base << endl
+            << "Sell Total: " << ask_sum << ' ' << orders.base << endl;
+
          return ss.str();
       };
 
@@ -2115,7 +2409,7 @@ public:
       asset_options opts;
       opts.flags &= ~(white_list | disable_force_settle | global_settle);
       opts.issuer_permissions = opts.flags;
-      opts.core_exchange_rate = price(asset(1), asset(1,1));
+      opts.core_exchange_rate = price(asset(1), asset(1,asset_id_type(1)));
       create_asset(get_account(creator).name, symbol, 2, opts, {}, true);
    }
 
@@ -2124,9 +2418,37 @@ public:
       asset_options opts;
       opts.flags &= ~white_list;
       opts.issuer_permissions = opts.flags;
-      opts.core_exchange_rate = price(asset(1), asset(1,1));
+      opts.core_exchange_rate = price(asset(1), asset(1,asset_id_type(1)));
       bitasset_options bopts;
       create_asset(get_account(creator).name, symbol, 2, opts, bopts, true);
+   }
+
+   void dbg_push_blocks( const std::string& src_filename, uint32_t count )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_push_blocks( src_filename, count );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
+   void dbg_generate_blocks( const std::string& debug_wif_key, uint32_t count )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_generate_blocks( debug_wif_key, count );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
+   void dbg_stream_json_objects( const std::string& filename )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_stream_json_objects( filename );
+      (*_remote_debug)->debug_stream_json_objects_flush();
+   }
+
+   void dbg_update_object( const fc::variant_object& update )
+   {
+      use_debug_api();
+      (*_remote_debug)->debug_update_object( update );
+      (*_remote_debug)->debug_stream_json_objects_flush();
    }
 
    void use_network_node_api()
@@ -2144,6 +2466,26 @@ public:
          "connecting to.  Please follow the instructions in README.md to set up an apiaccess file.\n"
          "\n";
          throw(e);
+      }
+   }
+
+   void use_debug_api()
+   {
+      if( _remote_debug )
+         return;
+      try
+      {
+        _remote_debug = _remote_api->debug();
+      }
+      catch( const fc::exception& e )
+      {
+         std::cerr << "\nCouldn't get debug node API.  You probably are not configured\n"
+         "to access the debug API on the node you are connecting to.\n"
+         "\n"
+         "To fix this problem:\n"
+         "- Please ensure you are running debug_node, not witness_node.\n"
+         "- Please follow the instructions in README.md to set up an apiaccess file.\n"
+         "\n";
       }
    }
 
@@ -2183,7 +2525,7 @@ public:
             dbg_make_uia(master.name, "SHILL");
          } catch(...) {/* Ignore; the asset probably already exists.*/}
 
-         fc::time_point start = fc::time_point::now(); 
+         fc::time_point start = fc::time_point::now();
          for( int i = 0; i < number_of_accounts; ++i )
          {
             std::ostringstream brain_key;
@@ -2240,6 +2582,7 @@ public:
    fc::api<network_broadcast_api>   _remote_net_broadcast;
    fc::api<history_api>    _remote_hist;
    optional< fc::api<network_node_api> > _remote_net_node;
+   optional< fc::api<graphene::debug_witness::debug_api> > _remote_debug;
 
    flat_map<string, operation> _prototype_ops;
 
@@ -2265,13 +2608,19 @@ std::string operation_printer::operator()(const T& op)const
    //op.get_balance_delta( acc, result );
    auto a = wallet.get_asset( op.fee.asset_id );
    auto payer = wallet.get_account( op.fee_payer() );
-   
+
    string op_name = fc::get_typename<T>::name();
    if( op_name.find_last_of(':') != string::npos )
       op_name.erase(0, op_name.find_last_of(':')+1);
    out << op_name <<" ";
   // out << "balance delta: " << fc::json::to_string(acc.balance) <<"   ";
-   out << payer.name << " fee: " << a.amount_to_pretty_string( op.fee ); 
+   out << payer.name << " fee: " << a.amount_to_pretty_string( op.fee );
+   operation_result_printer rprinter(wallet);
+   std::string str_result = result.visit(rprinter);
+   if( str_result != "" )
+   {
+      out << "   result: " << str_result;
+   }
    return "";
 }
 std::string operation_printer::operator()(const transfer_from_blind_operation& op)const
@@ -2279,7 +2628,7 @@ std::string operation_printer::operator()(const transfer_from_blind_operation& o
    auto a = wallet.get_asset( op.fee.asset_id );
    auto receiver = wallet.get_account( op.to );
 
-   out <<  receiver.name 
+   out <<  receiver.name
    << " received " << a.amount_to_pretty_string( op.amount ) << " from blinded balance";
    return "";
 }
@@ -2289,7 +2638,7 @@ std::string operation_printer::operator()(const transfer_to_blind_operation& op)
    auto a = wallet.get_asset( op.amount.asset_id );
    auto sender = wallet.get_account( op.from );
 
-   out <<  sender.name 
+   out <<  sender.name
    << " sent " << a.amount_to_pretty_string( op.amount ) << " to " << op.outputs.size() << " blinded balance" << (op.outputs.size()>1?"s":"")
    << " fee: " << fa.amount_to_pretty_string( op.fee );
    return "";
@@ -2306,12 +2655,18 @@ string operation_printer::operator()(const transfer_operation& op) const
          out << " -- Unlock wallet to see memo.";
       } else {
          try {
-            FC_ASSERT(wallet._keys.count(op.memo->to), "Memo is encrypted to a key ${k} not in this wallet.",
-                      ("k", op.memo->to));
-            auto my_key = wif_to_key(wallet._keys.at(op.memo->to));
-            FC_ASSERT(my_key, "Unable to recover private key to decrypt memo. Wallet may be corrupted.");
-            memo = op.memo->get_message(*my_key, op.memo->from);
-            out << " -- Memo: " << memo;
+            FC_ASSERT(wallet._keys.count(op.memo->to) || wallet._keys.count(op.memo->from), "Memo is encrypted to a key ${to} or ${from} not in this wallet.", ("to", op.memo->to)("from",op.memo->from));
+            if( wallet._keys.count(op.memo->to) ) {
+               auto my_key = wif_to_key(wallet._keys.at(op.memo->to));
+               FC_ASSERT(my_key, "Unable to recover private key to decrypt memo. Wallet may be corrupted.");
+               memo = op.memo->get_message(*my_key, op.memo->from);
+               out << " -- Memo: " << memo;
+            } else {
+               auto my_key = wif_to_key(wallet._keys.at(op.memo->from));
+               FC_ASSERT(my_key, "Unable to recover private key to decrypt memo. Wallet may be corrupted.");
+               memo = op.memo->get_message(*my_key, op.memo->to);
+               out << " -- Memo: " << memo;
+            }
          } catch (const fc::exception& e) {
             out << " -- could not decrypt memo";
             elog("Error when decrypting memo: ${e}", ("e", e.to_detail_string()));
@@ -2343,6 +2698,21 @@ std::string operation_printer::operator()(const asset_create_operation& op) cons
       out << "User-Issue Asset ";
    out << "'" << op.symbol << "' with issuer " << wallet.get_account(op.issuer).name;
    return fee(op.fee);
+}
+
+std::string operation_result_printer::operator()(const void_result& x) const
+{
+   return "";
+}
+
+std::string operation_result_printer::operator()(const object_id_type& oid)
+{
+   return std::string(oid);
+}
+
+std::string operation_result_printer::operator()(const asset& a)
+{
+   return _wallet.get_asset(a.asset_id).amount_to_pretty_string(a);
 }
 
 }}}
@@ -2405,7 +2775,7 @@ vector<operation_detail> wallet_api::get_account_history(string name, int limit)
    while( limit > 0 )
    {
       operation_history_id_type start;
-      if( result.size() ) 
+      if( result.size() )
       {
          start = result.back().op.id;
          start = start + 1;
@@ -2522,9 +2892,23 @@ signed_transaction wallet_api::sign_builder_transaction(transaction_handle_type 
    return my->sign_builder_transaction(transaction_handle, broadcast);
 }
 
-signed_transaction wallet_api::propose_builder_transaction(transaction_handle_type handle, time_point_sec expiration, uint32_t review_period_seconds, bool broadcast)
+signed_transaction wallet_api::propose_builder_transaction(
+   transaction_handle_type handle,
+   time_point_sec expiration,
+   uint32_t review_period_seconds,
+   bool broadcast)
 {
    return my->propose_builder_transaction(handle, expiration, review_period_seconds, broadcast);
+}
+
+signed_transaction wallet_api::propose_builder_transaction2(
+   transaction_handle_type handle,
+   string account_name_or_id,
+   time_point_sec expiration,
+   uint32_t review_period_seconds,
+   bool broadcast)
+{
+   return my->propose_builder_transaction2(handle, account_name_or_id, expiration, review_period_seconds, broadcast);
 }
 
 void wallet_api::remove_builder_transaction(transaction_handle_type handle)
@@ -2685,11 +3069,12 @@ bool wallet_api::import_account_keys( string filename, string password, string s
            const auto plain_text = fc::aes_decrypt( password_hash, encrypted_key );
            const auto private_key = fc::raw::unpack<private_key_type>( plain_text );
 
-           import_key( dest_account_name, string( graphene::utilities::key_to_wif( private_key ) ) );
+           my->import_key( dest_account_name, string( graphene::utilities::key_to_wif( private_key ) ) );
        }
 
        return true;
    }
+   save_wallet_file();
 
    FC_ASSERT( found_account );
 
@@ -2706,6 +3091,11 @@ variant wallet_api::info()
    return my->info();
 }
 
+variant_object wallet_api::about() const
+{
+    return my->about();
+}
+
 fc::ecc::private_key wallet_api::derive_private_key(const std::string& prefix_string, int sequence_number) const
 {
    return detail::derive_private_key( prefix_string, sequence_number );
@@ -2716,7 +3106,7 @@ signed_transaction wallet_api::register_account(string name,
                                                 public_key_type active_pubkey,
                                                 string  registrar_account,
                                                 string  referrer_account,
-                                                uint8_t referrer_percent,
+                                                uint32_t referrer_percent,
                                                 bool broadcast)
 {
    return my->register_account( name, owner_pubkey, active_pubkey, registrar_account, referrer_account, referrer_percent, broadcast );
@@ -2795,7 +3185,7 @@ signed_transaction wallet_api::reserve_asset(string from,
                                           string symbol,
                                           bool broadcast /* = false */)
 {
-   return my->fund_asset_fee_pool(from, amount, symbol, broadcast);
+   return my->reserve_asset(from, amount, symbol, broadcast);
 }
 
 signed_transaction wallet_api::global_settle_asset(string symbol,
@@ -2821,7 +3211,7 @@ signed_transaction wallet_api::whitelist_account(string authorizing_account,
    return my->whitelist_account(authorizing_account, account_to_list, new_listing_status, broadcast);
 }
 
-signed_transaction wallet_api::create_committee_member(string owner_account, string url, 
+signed_transaction wallet_api::create_committee_member(string owner_account, string url,
                                                bool broadcast /* = false */)
 {
    return my->create_committee_member(owner_account, url, broadcast);
@@ -2852,6 +3242,28 @@ signed_transaction wallet_api::create_witness(string owner_account,
                                               bool broadcast /* = false */)
 {
    return my->create_witness(owner_account, url, broadcast);
+}
+
+signed_transaction wallet_api::create_worker(
+   string owner_account,
+   time_point_sec work_begin_date,
+   time_point_sec work_end_date,
+   share_type daily_pay,
+   string name,
+   string url,
+   variant worker_settings,
+   bool broadcast /* = false */)
+{
+   return my->create_worker( owner_account, work_begin_date, work_end_date,
+      daily_pay, name, url, worker_settings, broadcast );
+}
+
+signed_transaction wallet_api::update_worker_votes(
+   string owner_account,
+   worker_vote_delta delta,
+   bool broadcast /* = false */)
+{
+   return my->update_worker_votes( owner_account, delta, broadcast );
 }
 
 signed_transaction wallet_api::update_witness(
@@ -2905,7 +3317,7 @@ signed_transaction wallet_api::set_desired_witness_and_committee_member_count(st
                                                                       uint16_t desired_number_of_committee_members,
                                                                       bool broadcast /* = false */)
 {
-   return my->set_desired_witness_and_committee_member_count(account_to_modify, desired_number_of_witnesses, 
+   return my->set_desired_witness_and_committee_member_count(account_to_modify, desired_number_of_witnesses,
                                                      desired_number_of_committee_members, broadcast);
 }
 
@@ -2934,6 +3346,26 @@ void wallet_api::dbg_make_mia(string creator, string symbol)
 {
    FC_ASSERT(!is_locked());
    my->dbg_make_mia(creator, symbol);
+}
+
+void wallet_api::dbg_push_blocks( std::string src_filename, uint32_t count )
+{
+   my->dbg_push_blocks( src_filename, count );
+}
+
+void wallet_api::dbg_generate_blocks( std::string debug_wif_key, uint32_t count )
+{
+   my->dbg_generate_blocks( debug_wif_key, count );
+}
+
+void wallet_api::dbg_stream_json_objects( const std::string& filename )
+{
+   my->dbg_stream_json_objects( filename );
+}
+
+void wallet_api::dbg_update_object( fc::variant_object update )
+{
+   my->dbg_update_object( update );
 }
 
 void wallet_api::network_add_nodes( const vector<string>& nodes )
@@ -3174,7 +3606,17 @@ vector< signed_transaction > wallet_api_impl::import_balance( string name_or_id,
       {
          optional< private_key_type > key = wif_to_key( wif_key );
          FC_ASSERT( key.valid(), "Invalid private key" );
-         addrs.push_back( key->get_public_key() );
+         fc::ecc::public_key pk = key->get_public_key();
+         addrs.push_back( pk );
+         keys[addrs.back()] = *key;
+         // see chain/balance_evaluator.cpp
+         addrs.push_back( pts_address( pk, false, 56 ) );
+         keys[addrs.back()] = *key;
+         addrs.push_back( pts_address( pk, true, 56 ) );
+         keys[addrs.back()] = *key;
+         addrs.push_back( pts_address( pk, false, 0 ) );
+         keys[addrs.back()] = *key;
+         addrs.push_back( pts_address( pk, true, 0 ) );
          keys[addrs.back()] = *key;
       }
    }
@@ -3234,7 +3676,7 @@ vector< signed_transaction > wallet_api_impl::import_balance( string name_or_id,
       if( broadcast )
          _remote_net_broadcast->broadcast_transaction(signed_tx);
    }
-   
+
    return result;
 } FC_CAPTURE_AND_RETHROW( (name_or_id) ) }
 
@@ -3264,11 +3706,39 @@ signed_transaction wallet_api::sell_asset(string seller_account,
                          symbol_to_receive, expiration, fill_or_kill, broadcast);
 }
 
+signed_transaction wallet_api::sell( string seller_account,
+                                     string base,
+                                     string quote,
+                                     double rate,
+                                     double amount,
+                                     bool broadcast )
+{
+   return my->sell_asset( seller_account, std::to_string( amount ), base,
+                          std::to_string( rate * amount ), quote, 0, false, broadcast );
+}
+
+signed_transaction wallet_api::buy( string buyer_account,
+                                    string base,
+                                    string quote,
+                                    double rate,
+                                    double amount,
+                                    bool broadcast )
+{
+   return my->sell_asset( buyer_account, std::to_string( rate * amount ), quote,
+                          std::to_string( amount ), base, 0, false, broadcast );
+}
+
 signed_transaction wallet_api::borrow_asset(string seller_name, string amount_to_sell,
                                                 string asset_symbol, string amount_of_collateral, bool broadcast)
 {
    FC_ASSERT(!is_locked());
    return my->borrow_asset(seller_name, amount_to_sell, asset_symbol, amount_of_collateral, broadcast);
+}
+
+signed_transaction wallet_api::cancel_order(object_id_type order_id, bool broadcast)
+{
+   FC_ASSERT(!is_locked());
+   return my->cancel_order(order_id, broadcast);
 }
 
 string wallet_api::get_key_label( public_key_type key )const
@@ -3356,8 +3826,8 @@ vector<asset>   wallet_api::get_blind_balances( string key_or_label )
 
    auto pub_key = get_public_key( key_or_label );
    auto& to_asset_used_idx = my->_wallet.blind_receipts.get<by_to_asset_used>();
-   auto start = to_asset_used_idx.lower_bound( std::make_tuple(pub_key,0,false)  );
-   auto end = to_asset_used_idx.lower_bound( std::make_tuple(pub_key,uint32_t(0xffffffff),true)  );
+   auto start = to_asset_used_idx.lower_bound( std::make_tuple(pub_key,asset_id_type(0),false)  );
+   auto end = to_asset_used_idx.lower_bound( std::make_tuple(pub_key,asset_id_type(uint32_t(0xffffffff)),true)  );
    while( start != end )
    {
       if( !start->used  )
@@ -3381,7 +3851,7 @@ vector<asset>   wallet_api::get_blind_balances( string key_or_label )
 }
 
 blind_confirmation wallet_api::transfer_from_blind( string from_blind_account_key_or_label,
-                                                    string to_account_id_or_name, 
+                                                    string to_account_id_or_name,
                                                     string amount_in,
                                                     string symbol,
                                                     bool broadcast )
@@ -3400,8 +3870,8 @@ blind_confirmation wallet_api::transfer_from_blind( string from_blind_account_ke
 
 
    auto conf = blind_transfer_help( from_blind_account_key_or_label,
-                               from_blind_account_key_or_label, 
-                               blind_in, symbol, false, true );
+                               from_blind_account_key_or_label,
+                               blind_in, symbol, false, true/*to_temp*/ );
    FC_ASSERT( conf.outputs.size() > 0 );
 
    auto to_account = my->get_account( to_account_id_or_name );
@@ -3415,6 +3885,24 @@ blind_confirmation wallet_api::transfer_from_blind( string from_blind_account_ke
    conf.trx.operations.push_back(from_blind);
    ilog( "about to validate" );
    conf.trx.validate();
+
+   if( broadcast && conf.outputs.size() == 2 ) {
+
+       // Save the change
+       blind_confirmation::output conf_output;
+       blind_confirmation::output change_output = conf.outputs[0];
+
+       // The wallet must have a private key for confirmation.to, this is used to decrypt the memo
+       public_key_type from_key = get_public_key(from_blind_account_key_or_label);
+       conf_output.confirmation.to = from_key;
+       conf_output.confirmation.one_time_key = change_output.confirmation.one_time_key;
+       conf_output.confirmation.encrypted_memo = change_output.confirmation.encrypted_memo;
+       conf_output.confirmation_receipt = conf_output.confirmation;
+       //try {
+       receive_blind_transfer( conf_output.confirmation_receipt, from_blind_account_key_or_label, "@"+to_account.name );
+       //} catch ( ... ){}
+   }
+
    ilog( "about to broadcast" );
    conf.trx = sign_transaction( conf.trx, broadcast );
 
@@ -3435,7 +3923,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
                                                string symbol,
                                                bool broadcast,
                                                bool to_temp )
-{ 
+{
    blind_confirmation confirm;
    try {
 
@@ -3479,7 +3967,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
          blinding_factors.push_back( start->data.blinding_factor );
          total_amount += start->amount;
 
-         if( total_amount >= amount + blind_tr.fee ) 
+         if( total_amount >= amount + blind_tr.fee )
             break;
       }
       ++start;
@@ -3547,7 +4035,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
       conf_output.decrypted_memo.amount = change;
       conf_output.decrypted_memo.blinding_factor = change_blind_factor;
       conf_output.decrypted_memo.commitment = change_out.commitment;
-      conf_output.decrypted_memo.check   = from_secret._hash[0]; 
+      conf_output.decrypted_memo.check   = from_secret._hash[0];
       conf_output.confirmation.one_time_key = one_time_key.get_public_key();
       conf_output.confirmation.to = from_key;
       conf_output.confirmation.encrypted_memo = fc::aes_encrypt( from_secret, fc::raw::pack( conf_output.decrypted_memo ) );
@@ -3565,7 +4053,7 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
    conf_output.decrypted_memo.amount = amount;
    conf_output.decrypted_memo.blinding_factor = blind_factor;
    conf_output.decrypted_memo.commitment = to_out.commitment;
-   conf_output.decrypted_memo.check   = secret._hash[0]; 
+   conf_output.decrypted_memo.check   = secret._hash[0];
    conf_output.confirmation.one_time_key = one_time_key.get_public_key();
    conf_output.confirmation.to = to_key;
    conf_output.confirmation.encrypted_memo = fc::aes_encrypt( secret, fc::raw::pack( conf_output.decrypted_memo ) );
@@ -3575,9 +4063,9 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
    confirm.outputs.push_back( conf_output );
 
    /** commitments must be in sorted order */
-   std::sort( blind_tr.outputs.begin(), blind_tr.outputs.end(), 
+   std::sort( blind_tr.outputs.begin(), blind_tr.outputs.end(),
               [&]( const blind_output& a, const blind_output& b ){ return a.commitment < b.commitment; } );
-   std::sort( blind_tr.inputs.begin(), blind_tr.inputs.end(), 
+   std::sort( blind_tr.inputs.begin(), blind_tr.inputs.end(),
               [&]( const blind_input& a, const blind_input& b ){ return a.commitment < b.commitment; } );
 
    confirm.trx.operations.emplace_back( std::move(blind_tr) );
@@ -3602,10 +4090,10 @@ blind_confirmation wallet_api::blind_transfer_help( string from_key_or_label,
  *  Transfers a public balance from @from to one or more blinded balances using a
  *  stealth transfer.
  */
-blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name, 
+blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name,
                                                   string asset_symbol,
                                                   /** map from key or label to amount */
-                                                  map<string, string> to_amounts, 
+                                                  vector<pair<string, string>> to_amounts,
                                                   bool broadcast )
 { try {
    FC_ASSERT( !is_locked() );
@@ -3636,7 +4124,7 @@ blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name
 
       auto amount = asset_obj->amount_from_string(item.second);
       total_amount += amount;
-      
+
 
       fc::ecc::public_key to_pub_key = to_key;
       blind_output out;
@@ -3652,7 +4140,7 @@ blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name
       conf_output.decrypted_memo.amount = amount;
       conf_output.decrypted_memo.blinding_factor = blind_factor;
       conf_output.decrypted_memo.commitment = out.commitment;
-      conf_output.decrypted_memo.check   = secret._hash[0]; 
+      conf_output.decrypted_memo.check   = secret._hash[0];
       conf_output.confirmation.one_time_key = one_time_key.get_public_key();
       conf_output.confirmation.to = to_key;
       conf_output.confirmation.encrypted_memo = fc::aes_encrypt( secret, fc::raw::pack( conf_output.decrypted_memo ) );
@@ -3666,7 +4154,7 @@ blind_confirmation wallet_api::transfer_to_blind( string from_account_id_or_name
    bop.blinding_factor = fc::ecc::blind_sum( blinding_factors, blinding_factors.size() );
 
    /** commitments must be in sorted order */
-   std::sort( bop.outputs.begin(), bop.outputs.end(), 
+   std::sort( bop.outputs.begin(), bop.outputs.end(),
               [&]( const blind_output& a, const blind_output& b ){ return a.commitment < b.commitment; } );
 
    confirm.trx.operations.push_back( bop );
@@ -3710,10 +4198,9 @@ blind_receipt wallet_api::receive_blind_transfer( string confirmation_receipt, s
    auto plain_memo = fc::aes_decrypt( secret, conf.encrypted_memo );
    auto memo = fc::raw::unpack<stealth_confirmation::memo_data>( plain_memo );
 
-
    result.to_key   = *conf.to;
    result.to_label = get_key_label( result.to_key );
-   if( memo.from ) 
+   if( memo.from )
    {
       result.from_key = *memo.from;
       result.from_label = get_key_label( result.from_key );
@@ -3733,9 +4220,6 @@ blind_receipt wallet_api::receive_blind_transfer( string confirmation_receipt, s
    // confirm the amount matches the commitment (verify the blinding factor)
    auto commtiment_test = fc::ecc::blind( memo.blinding_factor, memo.amount.amount.value );
    FC_ASSERT( fc::ecc::verify_sum( {commtiment_test}, {memo.commitment}, 0 ) );
-   
-   auto bbal = my->_remote_db->get_blinded_balances( {memo.commitment} );
-   FC_ASSERT( bbal.size(), "commitment not found in blockchain", ("memo",memo) );
 
    blind_balance bal;
    bal.amount = memo.amount;
@@ -3746,21 +4230,20 @@ blind_receipt wallet_api::receive_blind_transfer( string confirmation_receipt, s
    bal.commitment = memo.commitment;
    bal.used = false;
 
-   result.control_authority = bbal.front().owner;
+   auto child_pubkey = child_priv_key.get_public_key();
+   auto owner = authority(1, public_key_type(child_pubkey), 1);
+   result.control_authority = owner;
    result.data = memo;
 
-
-   auto child_key_itr = bbal.front().owner.key_auths.find( child_priv_key.get_public_key() );
-
-   if( child_key_itr != bbal.front().owner.key_auths.end() )
+   auto child_key_itr = owner.key_auths.find( child_pubkey );
+   if( child_key_itr != owner.key_auths.end() )
       my->_keys[child_key_itr->first] = key_to_wif( child_priv_key );
-
 
    // my->_wallet.blinded_balances[memo.amount.asset_id][bal.to].push_back( bal );
 
    result.date = fc::time_point::now();
    my->_wallet.blind_receipts.insert( result );
-   my->_keys[child_priv_key.get_public_key()] = key_to_wif( child_priv_key );
+   my->_keys[child_pubkey] = key_to_wif( child_priv_key );
 
    save_wallet_file();
 
@@ -3772,7 +4255,7 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    vector<blind_receipt> result;
    auto pub_key = get_public_key( key_or_account );
 
-   if( pub_key == public_key_type() ) 
+   if( pub_key == public_key_type() )
       return vector<blind_receipt>();
 
    for( auto& r : my->_wallet.blind_receipts )
@@ -3784,11 +4267,19 @@ vector<blind_receipt> wallet_api::blind_history( string key_or_account )
    return result;
 }
 
+order_book wallet_api::get_order_book( const string& base, const string& quote, unsigned limit )
+{
+   return( my->_remote_db->get_order_book( base, quote, limit ) );
+}
+
 signed_block_with_info::signed_block_with_info( const signed_block& block )
    : signed_block( block )
 {
    block_id = id();
    signing_key = signee();
+   transaction_ids.reserve( transactions.size() );
+   for( const processed_transaction& tx : transactions )
+      transaction_ids.push_back( tx.id() );
 }
 
 vesting_balance_object_with_info::vesting_balance_object_with_info( const vesting_balance_object& vbo, fc::time_point_sec now )

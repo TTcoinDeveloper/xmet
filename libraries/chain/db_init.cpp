@@ -1,37 +1,59 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.  All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The MIT License
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 
 #include <graphene/chain/database.hpp>
+#include <graphene/chain/fba_accumulator_id.hpp>
 
 #include <graphene/chain/account_object.hpp>
 #include <graphene/chain/asset_object.hpp>
 #include <graphene/chain/balance_object.hpp>
 #include <graphene/chain/block_summary_object.hpp>
 #include <graphene/chain/budget_record_object.hpp>
+#include <graphene/chain/buyback_object.hpp>
 #include <graphene/chain/chain_property_object.hpp>
 #include <graphene/chain/committee_member_object.hpp>
+#include <graphene/chain/confidential_object.hpp>
+#include <graphene/chain/fba_object.hpp>
 #include <graphene/chain/global_property_object.hpp>
+#include <graphene/chain/market_object.hpp>
+#include <graphene/chain/operation_history_object.hpp>
 #include <graphene/chain/proposal_object.hpp>
+#include <graphene/chain/special_authority_object.hpp>
 #include <graphene/chain/transaction_object.hpp>
 #include <graphene/chain/vesting_balance_object.hpp>
 #include <graphene/chain/withdraw_permission_object.hpp>
 #include <graphene/chain/witness_object.hpp>
 #include <graphene/chain/witness_schedule_object.hpp>
+#include <graphene/chain/worker_object.hpp>
 
 #include <graphene/chain/account_evaluator.hpp>
 #include <graphene/chain/asset_evaluator.hpp>
 #include <graphene/chain/assert_evaluator.hpp>
-#include <graphene/chain/custom_evaluator.hpp>
+#include <graphene/chain/balance_evaluator.hpp>
 #include <graphene/chain/committee_member_evaluator.hpp>
+#include <graphene/chain/confidential_evaluator.hpp>
+#include <graphene/chain/custom_evaluator.hpp>
 #include <graphene/chain/market_evaluator.hpp>
 #include <graphene/chain/proposal_evaluator.hpp>
 #include <graphene/chain/transfer_evaluator.hpp>
@@ -39,11 +61,10 @@
 #include <graphene/chain/withdraw_permission_evaluator.hpp>
 #include <graphene/chain/witness_evaluator.hpp>
 #include <graphene/chain/worker_evaluator.hpp>
-#include <graphene/chain/balance_evaluator.hpp>
-#include <graphene/chain/confidential_evaluator.hpp>
 
 #include <graphene/chain/protocol/fee_schedule.hpp>
 
+#include <fc/smart_ref_impl.hpp>
 #include <fc/uint128.hpp>
 #include <fc/crypto/digest.hpp>
 
@@ -149,6 +170,7 @@ void database::initialize_evaluators()
    register_evaluator<transfer_to_blind_evaluator>();
    register_evaluator<transfer_from_blind_evaluator>();
    register_evaluator<blind_transfer_evaluator>();
+   register_evaluator<asset_claim_fees_evaluator>();
 }
 
 void database::initialize_indexes()
@@ -190,6 +212,10 @@ void database::initialize_indexes()
    add_index< primary_index<simple_index<chain_property_object          > > >();
    add_index< primary_index<simple_index<witness_schedule_object        > > >();
    add_index< primary_index<simple_index<budget_record_object           > > >();
+   add_index< primary_index< special_authority_index                      > >();
+   add_index< primary_index< buyback_index                                > >();
+
+   add_index< primary_index< simple_index< fba_accumulator_object       > > >();
 }
 
 void database::init_genesis(const genesis_state_type& genesis_state)
@@ -296,7 +322,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
           a.statistics = create<account_statistics_object>([&](account_statistics_object& s){s.owner = a.id;}).id;
           a.owner.weight_threshold = 1;
           a.active.weight_threshold = 1;
-          a.registrar = a.lifetime_referrer = a.referrer = id;
+          a.registrar = a.lifetime_referrer = a.referrer = account_id_type(id);
           a.membership_expiration_date = time_point_sec::maximum();
           a.network_fee_percentage = GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
           a.lifetime_referrer_fee_percentage = GRAPHENE_100_PERCENT - GRAPHENE_DEFAULT_NETWORK_PERCENT_OF_FEE;
@@ -319,9 +345,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.issuer_permissions = 0;
          a.issuer = GRAPHENE_NULL_ACCOUNT;
          a.options.core_exchange_rate.base.amount = 1;
-         a.options.core_exchange_rate.base.asset_id = 0;
+         a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;
-         a.options.core_exchange_rate.quote.asset_id = 0;
+         a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
          a.dynamic_asset_data_id = dyn_asset.id;
       });
    assert( asset_id_type(core_asset.id) == asset().asset_id );
@@ -344,9 +370,9 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.issuer_permissions = 0;
          a.issuer = GRAPHENE_NULL_ACCOUNT;
          a.options.core_exchange_rate.base.amount = 1;
-         a.options.core_exchange_rate.base.asset_id = 0;
+         a.options.core_exchange_rate.base.asset_id = asset_id_type(0);
          a.options.core_exchange_rate.quote.amount = 1;
-         a.options.core_exchange_rate.quote.asset_id = 0;
+         a.options.core_exchange_rate.quote.asset_id = asset_id_type(0);
          a.dynamic_asset_data_id = dyn_asset.id;
       });
       FC_ASSERT( asset_obj.get_id() == asset_id_type(id) );
@@ -471,13 +497,14 @@ void database::init_genesis(const genesis_state_type& genesis_state)
                                                 GRAPHENE_DEFAULT_MAINTENANCE_COLLATERAL_RATIO);
             });
 
-            total_supplies[ 0 ] += collateral_rec.collateral;
+            total_supplies[ asset_id_type(0) ] += collateral_rec.collateral;
             total_debts[ new_asset_id ] += collateral_rec.debt;
             ++collateral_holder_number;
          }
 
          bitasset_data_id = create<asset_bitasset_data_object>([&](asset_bitasset_data_object& b) {
             b.options.short_backing_asset = core_asset.id;
+            b.options.minimum_feeds = GRAPHENE_DEFAULT_MINIMUM_FEEDS;
          }).id;
       }
 
@@ -492,9 +519,6 @@ void database::init_genesis(const genesis_state_type& genesis_state)
          a.options.description = asset.description;
          a.precision = asset.precision;
          string issuer_name = asset.issuer_name;
-#warning Remove this check doing real network, change BitAsset owners to be committee-account in genesis.
-         if( issuer_name == "witness-account" )
-            issuer_name = "committee-account";
          a.issuer = get_account_id(issuer_name);
          a.options.max_supply = asset.max_supply;
          a.options.flags = witness_fed_asset;
@@ -537,13 +561,13 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       total_supplies[ asset_id ] += vest.amount;
    }
 
-   if( total_supplies[ 0 ] > 0 )
+   if( total_supplies[ asset_id_type(0) ] > 0 )
    {
        adjust_balance(GRAPHENE_COMMITTEE_ACCOUNT, -get_balance(GRAPHENE_COMMITTEE_ACCOUNT,{}));
    }
    else
    {
-       total_supplies[ 0 ] = GRAPHENE_MAX_SHARE_SUPPLY;
+       total_supplies[ asset_id_type(0) ] = GRAPHENE_MAX_SHARE_SUPPLY;
    }
 
    const auto& idx = get_index_type<asset_index>().indices().get<by_symbol>();
@@ -627,8 +651,7 @@ void database::init_genesis(const genesis_state_type& genesis_state)
    modify(get_global_properties(), [&](global_property_object& p) {
       for( uint32_t i = 1; i <= genesis_state.initial_active_witnesses; ++i )
       {
-         p.active_witnesses.insert(i);
-         p.witness_accounts.insert(get(witness_id_type(i)).witness_account);
+         p.active_witnesses.insert(witness_id_type(i));
       }
    });
 
@@ -643,6 +666,36 @@ void database::init_genesis(const genesis_state_type& genesis_state)
       for( const witness_id_type& wid : get_global_properties().active_witnesses )
          wso.current_shuffled_witnesses.push_back( wid );
    });
+
+   // Create FBA counters
+   create<fba_accumulator_object>([&]( fba_accumulator_object& acc )
+   {
+      FC_ASSERT( acc.id == fba_accumulator_id_type( fba_accumulator_id_transfer_to_blind ) );
+      acc.accumulated_fba_fees = 0;
+#ifdef GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET
+      acc.designated_asset = GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET;
+#endif
+   });
+
+   create<fba_accumulator_object>([&]( fba_accumulator_object& acc )
+   {
+      FC_ASSERT( acc.id == fba_accumulator_id_type( fba_accumulator_id_blind_transfer ) );
+      acc.accumulated_fba_fees = 0;
+#ifdef GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET
+      acc.designated_asset = GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET;
+#endif
+   });
+
+   create<fba_accumulator_object>([&]( fba_accumulator_object& acc )
+   {
+      FC_ASSERT( acc.id == fba_accumulator_id_type( fba_accumulator_id_transfer_from_blind ) );
+      acc.accumulated_fba_fees = 0;
+#ifdef GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET
+      acc.designated_asset = GRAPHENE_FBA_STEALTH_DESIGNATED_ASSET;
+#endif
+   });
+
+   FC_ASSERT( get_index<fba_accumulator_object>().get_next_id() == fba_accumulator_id_type( fba_accumulator_id_count ) );
 
    debug_dump();
 

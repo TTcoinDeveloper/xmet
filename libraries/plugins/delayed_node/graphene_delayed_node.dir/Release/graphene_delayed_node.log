@@ -1,4 +1,0 @@
-﻿  Building Custom Rule C:/xmet/libraries/plugins/delayed_node/CMakeLists.txt
-  CMake does not need to re-run because C:\xmet\libraries\plugins\delayed_node\CMakeFiles\generate.stamp is up-to-date.
-  delayed_node_plugin.cpp
-c:\xmet\libraries\app\include\graphene\app\api_access.hpp(14): fatal error C1083: Cannot open include file: 'fc/reflect/reflect.hpp': No such file or directory

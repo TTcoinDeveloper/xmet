@@ -1,13 +1,25 @@
 /*
- * Copyright (c) 2015 Cryptonomex, Inc., and contributors.  All rights reserved.
+ * Copyright (c) 2015 Cryptonomex, Inc., and contributors.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * The MIT License
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  */
 #pragma once
 
@@ -207,6 +219,13 @@ struct approval_delta
    vector<string> key_approvals_to_remove;
 };
 
+struct worker_vote_delta
+{
+   flat_set<worker_id_type> vote_for;
+   flat_set<worker_id_type> vote_against;
+   flat_set<worker_id_type> vote_abstain;
+};
+
 struct signed_block_with_info : public signed_block
 {
    signed_block_with_info( const signed_block& block );
@@ -214,6 +233,7 @@ struct signed_block_with_info : public signed_block
 
    block_id_type block_id;
    public_key_type signing_key;
+   vector< transaction_id_type > transaction_ids;
 };
 
 struct vesting_balance_object_with_info : public vesting_balance_object
@@ -257,6 +277,10 @@ class wallet_api
       fc::ecc::private_key derive_private_key(const std::string& prefix_string, int sequence_number) const;
 
       variant                           info();
+      /** Returns info such as client version, git version of graphene/fc, version of boost, openssl.
+       * @returns compile time info and client and dependencies versions
+       */
+      variant_object                    about() const;
       optional<signed_block_with_info>    get_block( uint32_t num );
       /** Returns the number of accounts registered on the blockchain
        * @returns the number of registered accounts
@@ -426,9 +450,21 @@ class wallet_api
       /**
        * @ingroup Transaction Builder API
        */
-      signed_transaction propose_builder_transaction(transaction_handle_type handle,
-                                                     time_point_sec expiration = time_point::now() + fc::minutes(1),
-                                                     uint32_t review_period_seconds = 0, bool broadcast = true);
+      signed_transaction propose_builder_transaction(
+          transaction_handle_type handle,
+          time_point_sec expiration = time_point::now() + fc::minutes(1),
+          uint32_t review_period_seconds = 0,
+          bool broadcast = true
+         );
+
+      signed_transaction propose_builder_transaction2(
+         transaction_handle_type handle,
+         string account_name_or_id,
+         time_point_sec expiration = time_point::now() + fc::minutes(1),
+         uint32_t review_period_seconds = 0,
+         bool broadcast = true
+        );
+
       /**
        * @ingroup Transaction Builder API
        */
@@ -603,8 +639,9 @@ class wallet_api
        *                         portion of the user's transaction fees.  This can be the
        *                         same as the registrar_account if there is no referrer.
        * @param referrer_percent the percentage (0 - 100) of the new user's transaction fees
-       *                         not claimed by the blockchain that will be distributed to the 
-       *                         referrer; the rest will be sent to the registrar
+       *                         not claimed by the blockchain that will be distributed to the
+       *                         referrer; the rest will be sent to the registrar.  Will be
+       *                         multiplied by GRAPHENE_1_PERCENT when constructing the transaction.
        * @param broadcast true to broadcast the transaction on the network
        * @returns the signed transaction registering the account
        */
@@ -613,7 +650,7 @@ class wallet_api
                                           public_key_type active,
                                           string  registrar_account,
                                           string  referrer_account,
-                                          uint8_t referrer_percent,
+                                          uint32_t referrer_percent,
                                           bool broadcast = false);
 
       /**
@@ -670,6 +707,24 @@ class wallet_api
                                   string memo,
                                   bool broadcast = false);
 
+      /**
+       *  This method works just like transfer, except it always broadcasts and
+       *  returns the transaction ID along with the signed transaction.
+       */
+      pair<transaction_id_type,signed_transaction> transfer2(string from,
+                                                             string to,
+                                                             string amount,
+                                                             string asset_symbol,
+                                                             string memo ) {
+         auto trx = transfer( from, to, amount, asset_symbol, memo, true );
+         return std::make_pair(trx.id(),trx);
+      }
+
+
+      /**
+       *  This method is used to convert a JSON transaction to its transactin ID.
+       */
+      transaction_id_type get_transaction_id( const signed_transaction& trx )const { return trx.id(); }
 
 
       /** These methods are used for stealth transfers */
@@ -724,7 +779,7 @@ class wallet_api
       blind_confirmation transfer_to_blind( string from_account_id_or_name, 
                                             string asset_symbol,
                                             /** map from key or label to amount */
-                                            map<string, string> to_amounts, 
+                                            vector<pair<string, string>> to_amounts, 
                                             bool broadcast = false );
 
       /**
@@ -794,6 +849,51 @@ class wallet_api
                                     uint32_t timeout_sec = 0,
                                     bool     fill_or_kill = false,
                                     bool     broadcast = false);
+                                    
+      /** Place a limit order attempting to sell one asset for another.
+       * 
+       * This API call abstracts away some of the details of the sell_asset call to be more
+       * user friendly. All orders placed with sell never timeout and will not be killed if they
+       * cannot be filled immediately. If you wish for one of these parameters to be different, 
+       * then sell_asset should be used instead.
+       *
+       * @param seller_account the account providing the asset being sold, and which will
+       *                       receive the processed of the sale.
+       * @param base The name or id of the asset to sell.
+       * @param quote The name or id of the asset to recieve.
+       * @param rate The rate in base:quote at which you want to sell.
+       * @param amount The amount of base you want to sell.
+       * @param broadcast true to broadcast the transaction on the network.
+       * @returns The signed transaction selling the funds.                 
+       */
+      signed_transaction sell( string seller_account,
+                               string base,
+                               string quote,
+                               double rate,
+                               double amount,
+                               bool broadcast );
+                               
+      /** Place a limit order attempting to buy one asset with another.
+       *
+       * This API call abstracts away some of the details of the sell_asset call to be more
+       * user friendly. All orders placed with buy never timeout and will not be killed if they
+       * cannot be filled immediately. If you wish for one of these parameters to be different,
+       * then sell_asset should be used instead.
+       *
+       * @param buyer_account The account buying the asset for another asset.
+       * @param base The name or id of the asset to buy.
+       * @param quote The name or id of the assest being offered as payment.
+       * @param rate The rate in base:quote at which you want to buy.
+       * @param amount the amount of base you want to buy.
+       * @param broadcast true to broadcast the transaction on the network.
+       * @param The signed transaction selling the funds.
+       */
+      signed_transaction buy( string buyer_account,
+                              string base,
+                              string quote,
+                              double rate,
+                              double amount,
+                              bool broadcast );
 
       /** Borrow an asset or update the debt/collateral ratio for the loan.
        *
@@ -811,6 +911,14 @@ class wallet_api
        */
       signed_transaction borrow_asset(string borrower_name, string amount_to_borrow, string asset_symbol,
                                       string amount_of_collateral, bool broadcast = false);
+
+      /** Cancel an existing order
+       *
+       * @param order_id the id of order to be cancelled
+       * @param broadcast true to broadcast the transaction on the network
+       * @returns the signed transaction canceling the order
+       */
+      signed_transaction cancel_order(object_id_type order_id, bool broadcast = false);
 
       /** Creates a new user-issued or market-issued asset.
        *
@@ -1115,6 +1223,43 @@ class wallet_api
                                         string block_signing_key,
                                         bool broadcast = false);
 
+
+      /**
+       * Create a worker object.
+       *
+       * @param owner_account The account which owns the worker and will be paid
+       * @param work_begin_date When the work begins
+       * @param work_end_date When the work ends
+       * @param daily_pay Amount of pay per day (NOT per maint interval)
+       * @param name Any text
+       * @param url Any text
+       * @param worker_settings {"type" : "burn"|"refund"|"vesting", "pay_vesting_period_days" : x}
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction create_worker(
+         string owner_account,
+         time_point_sec work_begin_date,
+         time_point_sec work_end_date,
+         share_type daily_pay,
+         string name,
+         string url,
+         variant worker_settings,
+         bool broadcast = false
+         );
+
+      /**
+       * Update your votes for a worker
+       *
+       * @param account The account which will pay the fee and update votes.
+       * @param worker_vote_delta {"vote_for" : [...], "vote_against" : [...], "vote_abstain" : [...]}
+       * @param broadcast true if you wish to broadcast the transaction.
+       */
+      signed_transaction update_worker_votes(
+         string account,
+         worker_vote_delta delta,
+         bool broadcast = false
+         );
+
       /**
        * Get information about a vesting balance object.
        *
@@ -1301,9 +1446,16 @@ class wallet_api
          const approval_delta& delta,
          bool broadcast /* = false */
          );
+         
+      order_book get_order_book( const string& base, const string& quote, unsigned limit = 50);
 
       void dbg_make_uia(string creator, string symbol);
       void dbg_make_mia(string creator, string symbol);
+      void dbg_push_blocks( std::string src_filename, uint32_t count );
+      void dbg_generate_blocks( std::string debug_wif_key, uint32_t count );
+      void dbg_stream_json_objects( const std::string& filename );
+      void dbg_update_object( fc::variant_object update );
+
       void flood_network(string prefix, uint32_t number_of_transactions);
 
       void network_add_nodes( const vector<string>& nodes );
@@ -1371,8 +1523,14 @@ FC_REFLECT( graphene::wallet::approval_delta,
    (key_approvals_to_remove)
 )
 
+FC_REFLECT( graphene::wallet::worker_vote_delta,
+   (vote_for)
+   (vote_against)
+   (vote_abstain)
+)
+
 FC_REFLECT_DERIVED( graphene::wallet::signed_block_with_info, (graphene::chain::signed_block),
-   (block_id)(signing_key) )
+   (block_id)(signing_key)(transaction_ids) )
 
 FC_REFLECT_DERIVED( graphene::wallet::vesting_balance_object_with_info, (graphene::chain::vesting_balance_object),
    (allowed_withdraw)(allowed_withdraw_time) )
@@ -1384,6 +1542,7 @@ FC_API( graphene::wallet::wallet_api,
         (help)
         (gethelp)
         (info)
+        (about)
         (begin_builder_transaction)
         (add_operation_to_builder_transaction)
         (replace_operation_in_builder_transaction)
@@ -1391,6 +1550,7 @@ FC_API( graphene::wallet::wallet_api,
         (preview_builder_transaction)
         (sign_builder_transaction)
         (propose_builder_transaction)
+        (propose_builder_transaction2)
         (remove_builder_transaction)
         (is_new)
         (is_locked)
@@ -1409,8 +1569,13 @@ FC_API( graphene::wallet::wallet_api,
         (upgrade_account)
         (create_account_with_brain_key)
         (sell_asset)
+        (sell)
+        (buy)
         (borrow_asset)
+        (cancel_order)
         (transfer)
+        (transfer2)
+        (get_transaction_id)
         (create_asset)
         (update_asset)
         (update_bitasset)
@@ -1431,6 +1596,8 @@ FC_API( graphene::wallet::wallet_api,
         (list_committee_members)
         (create_witness)
         (update_witness)
+        (create_worker)
+        (update_worker_votes)
         (get_vesting_balances)
         (withdraw_vesting)
         (vote_for_committee_member)
@@ -1461,6 +1628,10 @@ FC_API( graphene::wallet::wallet_api,
         (approve_proposal)
         (dbg_make_uia)
         (dbg_make_mia)
+        (dbg_push_blocks)
+        (dbg_generate_blocks)
+        (dbg_stream_json_objects)
+        (dbg_update_object)
         (flood_network)
         (network_add_nodes)
         (network_get_connected_peers)
@@ -1476,4 +1647,5 @@ FC_API( graphene::wallet::wallet_api,
         (blind_transfer)
         (blind_history)
         (receive_blind_transfer)
+        (get_order_book)
       )
