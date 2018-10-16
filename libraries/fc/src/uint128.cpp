@@ -1,8 +1,11 @@
 #include <fc/uint128.hpp>
 #include <fc/variant.hpp>
 #include <fc/crypto/bigint.hpp>
-#include <stdexcept>
-#include "byteswap.hpp"
+#ifdef WIN32
+#include <WinSock2.h>
+#else
+#include <arpa/inet.h>
+#endif
 
 namespace fc 
 {
@@ -114,9 +117,10 @@ namespace fc
     }
 
 
+    #define bswap64(y) (((uint64_t)ntohl(y)) << 32 | ntohl(y>>32))
     uint128::operator bigint()const
     {
-       auto tmp  = uint128( bswap_64( hi ), bswap_64( lo ) );
+       auto tmp  = uint128( bswap64( hi ), bswap64( lo ) );
        bigint bi( (char*)&tmp, sizeof(tmp) );
        return bi;
     }
@@ -150,14 +154,15 @@ namespace fc
 
     uint128& uint128::operator<<=(const uint128& rhs) 
     {
-        if(rhs >= 128) 
+        unsigned int n = rhs.to_integer();
+        
+        if(n >= 128) 
         {
           hi = 0;
           lo = 0;
         } 
         else 
         {
-          unsigned int n = rhs.to_integer();
           const unsigned int halfsize = 128 / 2;
         
             if(n >= halfsize){
@@ -180,19 +185,17 @@ namespace fc
             }
        }
 
-       return *this;
+        return *this;
     }
 
     uint128 & uint128::operator>>=(const uint128& rhs) 
     {
-       if(rhs >= 128)
-       {
+       unsigned int n = rhs.to_integer();
+       
+       if(n >= 128) {
          hi = 0;
          lo = 0;
-       }
-       else
-       {
-         unsigned int n = rhs.to_integer();
+       } else {
          const unsigned int halfsize = 128 / 2;
        
            if(n >= halfsize) {
@@ -234,124 +237,32 @@ namespace fc
 
     uint128& uint128::operator*=(const uint128 &b) 
     {
-        uint64_t a0 = (uint32_t) (this->lo        );
-        uint64_t a1 = (uint32_t) (this->lo >> 0x20);
-        uint64_t a2 = (uint32_t) (this->hi        );
-        uint64_t a3 = (uint32_t) (this->hi >> 0x20);
-
-        uint64_t b0 = (uint32_t) (b.lo        );
-        uint64_t b1 = (uint32_t) (b.lo >> 0x20);
-        uint64_t b2 = (uint32_t) (b.hi        );
-        uint64_t b3 = (uint32_t) (b.hi >> 0x20);
-
-        // (a0 + (a1 << 0x20) + (a2 << 0x40) + (a3 << 0x60)) *
-        // (b0 + (b1 << 0x20) + (b2 << 0x40) + (b3 << 0x60)) =
-        //  a0 * b0
-        //
-        // (a1 * b0 + a0 * b1) << 0x20
-        // (a2 * b0 + a1 * b1 + a0 * b2) << 0x40
-        // (a3 * b0 + a2 * b1 + a1 * b2 + a0 * b3) << 0x60
-        //
-        // all other cross terms are << 0x80 or higher, thus do not appear in result
-        
-        this->hi = 0;
-        this->lo = a3*b0;
-        (*this) += a2*b1;
-        (*this) += a1*b2;
-        (*this) += a0*b3;
-        (*this) <<= 0x20;
-        (*this) += a2*b0;
-        (*this) += a1*b1;
-        (*this) += a0*b2;
-        (*this) <<= 0x20;
-        (*this) += a1*b0;
-        (*this) += a0*b1;
-        (*this) <<= 0x20;
-        (*this) += a0*b0;
-
+      // check for multiply by 0
+      // result is always 0 :-P
+      if(b == 0) {
+        hi = 0;
+        lo = 0;
+      } else if(b != 1) {
+      
+        // check we aren't multiplying by 1
+      
+          uint128 a(*this);
+          uint128 t = b;
+      
+          lo = 0;
+          hi = 0;
+      
+          for (unsigned int i = 0; i < 128; ++i) {
+              if((t & 1) != 0) {
+                  *this += (a << i);
+          }
+      
+              t >>= 1;
+          }
+      }
+      
         return *this;
    }
-   
-   void uint128::full_product( const uint128& a, const uint128& b, uint128& result_hi, uint128& result_lo )
-   {
-       //   (ah * 2**64 + al) * (bh * 2**64 + bl)
-       // = (ah * bh * 2**128 + al * bh * 2**64 + ah * bl * 2**64 + al * bl
-       // =  P * 2**128 + (Q + R) * 2**64 + S
-       // = Ph * 2**192 + Pl * 2**128
-       // + Qh * 2**128 + Ql * 2**64
-       // + Rh * 2**128 + Rl * 2**64
-       // + Sh * 2**64  + Sl
-       //
-       
-       uint64_t ah = a.hi;
-       uint64_t al = a.lo;
-       uint64_t bh = b.hi;
-       uint64_t bl = b.lo;
-
-       uint128 s = al;
-       s *= bl;
-       uint128 r = ah;
-       r *= bl;
-       uint128 q = al;
-       q *= bh;
-       uint128 p = ah;
-       p *= bh;
-       
-       uint64_t sl = s.lo;
-       uint64_t sh = s.hi;
-       uint64_t rl = r.lo;
-       uint64_t rh = r.hi;
-       uint64_t ql = q.lo;
-       uint64_t qh = q.hi;
-       uint64_t pl = p.lo;
-       uint64_t ph = p.hi;
-
-       uint64_t y[4];    // final result
-       y[0] = sl;
-       
-       uint128_t acc = sh;
-       acc += ql;
-       acc += rl;
-       y[1] = acc.lo;
-       acc = acc.hi;
-       acc += qh;
-       acc += rh;
-       acc += pl;
-       y[2] = acc.lo;
-       y[3] = acc.hi + ph;
-       
-       result_hi = uint128( y[3], y[2] );
-       result_lo = uint128( y[1], y[0] );
-       
-       return;
-   }
-
-   static uint8_t _popcount_64( uint64_t x )
-   {
-      static const uint64_t m[] = {
-         0x5555555555555555ULL,
-         0x3333333333333333ULL,
-         0x0F0F0F0F0F0F0F0FULL,
-         0x00FF00FF00FF00FFULL,
-         0x0000FFFF0000FFFFULL,
-         0x00000000FFFFFFFFULL
-      };
-      // TODO future optimization:  replace slow, portable version
-      // with fast, non-portable __builtin_popcountll intrinsic
-      // (when available)
-
-      for( int i=0, w=1; i<6; i++, w+=w )
-      {
-         x = (x & m[i]) + ((x >> w) & m[i]);
-      }
-      return uint8_t(x);
-   }
-
-   uint8_t uint128::popcount()const
-   {
-      return _popcount_64( lo ) + _popcount_64( hi );
-   }
-
    void to_variant( const uint128& var,  variant& vo )  { vo = std::string(var);         }
    void from_variant( const variant& var,  uint128& vo ){ vo = uint128(var.as_string()); }
 

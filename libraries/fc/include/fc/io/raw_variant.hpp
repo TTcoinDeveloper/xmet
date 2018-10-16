@@ -1,5 +1,4 @@
 #pragma once
-#include <fc/exception/exception.hpp>
 #include <fc/io/raw_fwd.hpp>
 #include <fc/variant_object.hpp>
 #include <fc/variant.hpp>
@@ -118,7 +117,7 @@ namespace fc { namespace raw {
     template<typename Stream> 
     inline void pack( Stream& s, const variant_object& v ) 
     {
-       unsigned_int vs = (uint32_t)v.size();
+       unsigned_int vs = v.size();
        pack( s, vs );
        for( auto itr = v.begin(); itr != v.end(); ++itr )
        {
@@ -134,7 +133,7 @@ namespace fc { namespace raw {
 
        mutable_variant_object mvo;
        mvo.reserve(vs.value);
-       for( uint32_t i = 0; i < vs.value; ++i )
+       for( auto i = 0; i < vs.value; ++i )
        {
           fc::string key;
           fc::variant value;

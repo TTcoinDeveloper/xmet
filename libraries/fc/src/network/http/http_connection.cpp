@@ -7,8 +7,6 @@
 #include <fc/crypto/hex.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/stdio.hpp>
-#include <fc/network/url.hpp>
-#include <boost/algorithm/string.hpp>
 
 
 class fc::http::connection::impl 
@@ -56,7 +54,7 @@ class fc::http::connection::impl
           while( *end != '\r' ) ++end;
           h.val = fc::string(skey,end);
           rep.headers.push_back(h);
-          if( boost::iequals(h.key, "Content-Length") ) {
+          if( h.key == "Content-Length" ) {
              rep.body.resize( static_cast<size_t>(to_uint64( fc::string(h.val) ) ));
           }
         }
@@ -92,15 +90,14 @@ http::reply connection::request( const fc::string& method,
                                 const fc::string& url, 
                                 const fc::string& body, const headers& he ) {
 	
-  fc::url parsed_url(url);
   if( !my->sock.is_open() ) {
     wlog( "Re-open socket!" );
     my->sock.connect_to( my->ep );
   }
   try {
       fc::stringstream req;
-      req << method <<" "<<parsed_url.path()->generic_string()<<" HTTP/1.1\r\n";
-      req << "Host: "<<*parsed_url.host()<<"\r\n";
+      req << method <<" "<<url<<" HTTP/1.1\r\n";
+      req << "Host: localhost\r\n";
       req << "Content-Type: application/json\r\n";
       for( auto i = he.begin(); i != he.end(); ++i )
       {
@@ -152,12 +149,10 @@ http::request    connection::read_request()const {
     while( *end != '\r' ) ++end;
     h.val = fc::string(skey,end);
     req.headers.push_back(h);
-    if( boost::iequals(h.key, "Content-Length")) {
-       auto s = static_cast<size_t>(to_uint64( fc::string(h.val) ) );
-       FC_ASSERT( s < 1024*1024 );
+    if( h.key == "Content-Length" ) {
        req.body.resize( static_cast<size_t>(to_uint64( fc::string(h.val) ) ));
     }
-    if( boost::iequals(h.key, "Host") ) {
+    if( h.key == "Host" ) {
        req.domain = h.val;
     }
   }
@@ -172,7 +167,7 @@ http::request    connection::read_request()const {
 
 fc::string request::get_header( const fc::string& key )const {
   for( auto itr = headers.begin(); itr != headers.end(); ++itr ) {
-    if( boost::iequals(itr->key, key) ) { return itr->val; } 
+    if( itr->key == key ) { return itr->val; } 
   }
   return fc::string();
 }

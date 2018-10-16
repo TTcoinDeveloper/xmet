@@ -102,7 +102,6 @@ namespace fc {
     private:
       fc::spin_yield_lock   m_blist_lock;
       fc::context*          m_blist;
-      unsigned              recursive_lock_count;
   };
   
 } // namespace fc

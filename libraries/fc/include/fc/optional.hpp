@@ -7,9 +7,7 @@ namespace fc {
 #ifdef _MSC_VER
 # pragma warning(push)
 # pragma warning(disable:4521)  /* multiple copy ctors */
-# pragma warning(disable:4522) /* multiple assignment operators */
 #endif
-  bool assert_optional(bool is_valid ); // defined in exception.cpp
 
   /**
    *  @brief provides stack-based nullable value similar to boost::optional
@@ -18,11 +16,9 @@ namespace fc {
    *  fc::optional adds less than 400.
    */
   template<typename T>
-  class optional
+  class optional 
   {
     public:
-      typedef T value_type;
-
       optional():_valid(false){}
       ~optional(){ reset(); }
 
@@ -186,22 +182,19 @@ namespace fc {
 
       bool valid()const     { return _valid;  }
       bool operator!()const { return !_valid; }
-
-      // this operation is not safe and can result in unintential 
-      // casts and comparisons, use valid() or !! 
-      explicit operator bool()const  { return _valid;  }
+      operator bool()const  { return _valid;  }
 
       T&       operator*()      { assert(_valid); return ref(); }
       const T& operator*()const { assert(_valid); return ref(); }
 
       T*       operator->()      
       { 
-         assert(_valid);
+         assert( _valid );
          return ptr(); 
       }
       const T* operator->()const 
       { 
-         assert(_valid);
+         assert( _valid );
          return ptr(); 
       }
 
@@ -209,17 +202,6 @@ namespace fc {
       {
         reset();
         return *this;
-      }
-
-      friend bool operator < ( const optional a, optional b )
-      {
-         if( a.valid() && b.valid() ) return *a < *b;
-         return a.valid() < b.valid();
-      }
-      friend bool operator == ( const optional a, optional b )
-      {
-         if( a.valid() && b.valid() ) return *a == *b;
-         return a.valid() == b.valid();
       }
 
       void     reset()    
@@ -238,7 +220,7 @@ namespace fc {
       const T* ptr()const { const void* v = &_value[0]; return static_cast<const T*>(v); }
 
       // force alignment... to 8 byte boundaries 
-      double _value[((sizeof(T)+7)/8)];
+      double _value[8 * ((sizeof(T)+7)/8)];
       bool   _valid;
   };
 

@@ -5,7 +5,6 @@
 #include <fc/crypto/sha1.hpp>
 #include <fc/variant.hpp>
 #include <vector>
-#include "_digest_common.hpp"
 
 namespace fc 
 {
@@ -55,7 +54,11 @@ void sha1::encoder::reset() {
 
 sha1 operator << ( const sha1& h1, uint32_t i ) {
   sha1 result;
-  fc::detail::shift_l( h1.data(), result.data(), result.data_size(), i );
+  uint8_t* r = (uint8_t*)result._hash;
+  uint8_t* s = (uint8_t*)h1._hash;
+  for( uint32_t p = 0; p < sizeof(h1._hash)-1; ++p )
+      r[p] = s[p] << i | (s[p+1]>>(8-i));
+  r[19] = s[19] << i;
   return result;
 }
 sha1 operator ^ ( const sha1& h1, const sha1& h2 ) {

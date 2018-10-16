@@ -1,23 +1,18 @@
-
-#include <fstream>
-#include <sstream>
-
-#include <fc/filesystem.hpp>
-#include <fc/exception/exception.hpp>
 #include <fc/io/fstream.hpp>
+#include <fc/filesystem.hpp>
+#include <fstream>
+#include <fc/exception/exception.hpp>
 #include <fc/log/logger.hpp>
 
-#include <boost/filesystem/path.hpp>
-#include <boost/filesystem/fstream.hpp>
 
 namespace fc {
    class ofstream::impl : public fc::retainable {
       public:
-         boost::filesystem::ofstream ofs;
+         std::ofstream ofs;
    };
    class ifstream::impl : public fc::retainable {
       public:
-         boost::filesystem::ifstream ifs;
+         std::ifstream ifs;
    };
 
    ofstream::ofstream()
@@ -28,18 +23,12 @@ namespace fc {
    ofstream::~ofstream(){}
 
    void ofstream::open( const fc::path& file, int m ) {
-     const boost::filesystem::path& bfp = file; 
-     my->ofs.open( bfp, std::ios::binary );
+      my->ofs.open( file.string().c_str(), std::ios::binary );
    }
    size_t ofstream::writesome( const char* buf, size_t len ) {
         my->ofs.write(buf,len);
         return len;
    }
-   size_t ofstream::writesome(const std::shared_ptr<const char>& buffer, size_t len, size_t offset)
-   {
-     return writesome(buffer.get() + offset, len);
-   }
-
    void   ofstream::put( char c ) {
         my->ofs.put(c);
    }
@@ -60,8 +49,7 @@ namespace fc {
    ifstream::~ifstream(){}
 
    void ifstream::open( const fc::path& file, int m ) {
-     const boost::filesystem::path& bfp = file; 
-      my->ifs.open( bfp, std::ios::binary );
+      my->ifs.open( file.string().c_str(), std::ios::binary );
    }
    size_t ifstream::readsome( char* buf, size_t len ) {
       auto s = size_t(my->ifs.readsome( buf, len ));
@@ -71,14 +59,8 @@ namespace fc {
       }
       return s;
    }
-   size_t ifstream::readsome(const std::shared_ptr<char>& buffer, size_t max, size_t offset)
-   {
-     return readsome(buffer.get() + offset, max);
-   }
-
    ifstream& ifstream::read( char* buf, size_t len ) {
-      if (eof())
-        FC_THROW_EXCEPTION( eof_exception , "");
+      if( eof() ) FC_THROW_EXCEPTION( eof_exception , "");
       my->ifs.read(buf,len);
       if (my->ifs.gcount() < int64_t(len))
         FC_THROW_EXCEPTION( eof_exception , "");
@@ -96,14 +78,5 @@ namespace fc {
 
    bool   ifstream::eof()const { return !my->ifs.good(); }
 
-   void read_file_contents( const fc::path& filename, std::string& result )
-   {
-      const boost::filesystem::path& bfp = filename;
-      boost::filesystem::ifstream f( bfp, std::ios::in | std::ios::binary );
-      // don't use fc::stringstream here as we need something with override for << rdbuf()
-      std::stringstream ss;
-      ss << f.rdbuf();
-      result = ss.str();
-   }
   
 } // namespace fc 

@@ -7,18 +7,10 @@
 #include <boost/version.hpp>
 
 #if BOOST_VERSION >= 105400
-# include <boost/coroutine/stack_context.hpp>
+  #include <boost/coroutine/stack_context.hpp>
+  #include <boost/coroutine/stack_allocator.hpp>
   namespace bc  = boost::context;
   namespace bco = boost::coroutines;
-# if BOOST_VERSION >= 105600 && !defined(NDEBUG)
-#  include <boost/assert.hpp>
-#  include <boost/coroutine/protected_stack_allocator.hpp>
-  typedef bco::protected_stack_allocator stack_allocator;
-# else
-#  include <boost/coroutine/stack_allocator.hpp>
-  typedef bco::stack_allocator stack_allocator;
-# endif
-
 #elif BOOST_VERSION >= 105300
   #include <boost/coroutine/stack_allocator.hpp>
   namespace bc  = boost::context;
@@ -43,12 +35,12 @@ namespace fc {
   struct context  {
     typedef fc::context* ptr;
 
-#if BOOST_VERSION >= 105400
+    #if BOOST_VERSION >= 105400
     bco::stack_context stack_ctx;
-#endif
+    #endif
 
 
-    context( void (*sf)(intptr_t), stack_allocator& alloc, fc::thread* t )
+    context( void (*sf)(intptr_t), bco::stack_allocator& alloc, fc::thread* t )
     : caller_context(0),
       stack_alloc(&alloc),
       next_blocked(0), 
@@ -56,27 +48,20 @@ namespace fc {
       next(0), 
       ctx_thread(t),
       canceled(false),
-#ifndef NDEBUG
-      cancellation_reason(nullptr),
-#endif
       complete(false),
-      cur_task(0),
-      context_posted_num(0)
+      cur_task(0)
     {
-#if BOOST_VERSION >= 105600
-     size_t stack_size = FC_CONTEXT_STACK_SIZE;
-     alloc.allocate(stack_ctx, stack_size);
-     my_context = bc::make_fcontext( stack_ctx.sp, stack_ctx.size, sf); 
-#elif BOOST_VERSION >= 105400
-     size_t stack_size = FC_CONTEXT_STACK_SIZE;
+#if BOOST_VERSION >= 105400
+     bco::stack_context   stack_ctx;
+     size_t stack_size =  bco::stack_allocator::default_stacksize();
      alloc.allocate(stack_ctx, stack_size);
      my_context = bc::make_fcontext( stack_ctx.sp, stack_ctx.size, sf);
 #elif BOOST_VERSION >= 105300
-     size_t stack_size = FC_CONTEXT_STACK_SIZE;
+     size_t stack_size =  bco::stack_allocator::default_stacksize();
      void*  stackptr = alloc.allocate(stack_size);
      my_context = bc::make_fcontext( stackptr, stack_size, sf);
 #else
-     size_t stack_size = FC_CONTEXT_STACK_SIZE;
+     size_t stack_size = bc::default_stacksize();
      my_context.fc_stack.base = alloc.allocate( stack_size );
      my_context.fc_stack.limit = static_cast<char*>( my_context.fc_stack.base) - stack_size;
      make_fcontext( &my_context, sf );
@@ -84,9 +69,7 @@ namespace fc {
     }
 
     context( fc::thread* t) :
-#if BOOST_VERSION >= 105600
-     my_context(nullptr),
-#elif BOOST_VERSION >= 105300
+#if BOOST_VERSION >= 105300
      my_context(new bc::fcontext_t),
 #endif
      caller_context(0),
@@ -96,47 +79,31 @@ namespace fc {
      next(0), 
      ctx_thread(t),
      canceled(false),
-#ifndef NDEBUG
-     cancellation_reason(nullptr),
-#endif
      complete(false),
-     cur_task(0),
-     context_posted_num(0)
+     cur_task(0)
     {}
 
     ~context() {
-#if BOOST_VERSION >= 105600
-      if(stack_alloc)
-        stack_alloc->deallocate( stack_ctx );
-#elif BOOST_VERSION >= 105400
+#if BOOST_VERSION >= 105400
       if(stack_alloc)
         stack_alloc->deallocate( stack_ctx );
       else
         delete my_context;
+#elif BOOST_VERSION >= 105400
+      if(stack_alloc)
+        stack_alloc->deallocate( my_context->fc_stack.sp, bco::stack_allocator::default_stacksize() );
+      else
+        delete my_context;
+
 #elif BOOST_VERSION >= 105300
       if(stack_alloc)
-        stack_alloc->deallocate( my_context->fc_stack.sp, FC_CONTEXT_STACK_SIZE);
+        stack_alloc->deallocate( my_context->fc_stack.sp, bco::stack_allocator::default_stacksize() );
       else
         delete my_context;
 #else
       if(stack_alloc)
-        stack_alloc->deallocate( my_context.fc_stack.base, FC_CONTEXT_STACK_SIZE );
+        stack_alloc->deallocate( my_context.fc_stack.base, bc::default_stacksize() );
 #endif
-    }
-
-    void reinitialize()
-    {
-      canceled = false;
-#ifndef NDEBUG
-      cancellation_reason = nullptr;
-#endif
-      blocking_prom.clear();
-      caller_context = nullptr;
-      resume_time = fc::time_point();
-      next_blocked = nullptr;
-      next_blocked_mutex = nullptr;
-      next = nullptr;
-      complete = false;
     }
 
     struct blocked_promise {
@@ -196,7 +163,7 @@ namespace fc {
         i->prom->set_exception( std::make_shared<timeout_exception>() );
       }
     }
-    void set_exception_on_blocking_promises( const exception_ptr& e ) {
+    void except_blocking_promises( const exception_ptr& e ) {
       for( auto i = blocking_prom.begin(); i != blocking_prom.end(); ++i ) {
         i->prom->set_exception( e );
       }
@@ -209,13 +176,13 @@ namespace fc {
 
 
 
-#if BOOST_VERSION >= 105300 && BOOST_VERSION < 105600
+#if BOOST_VERSION >= 105300
     bc::fcontext_t*              my_context;
 #else
     bc::fcontext_t               my_context;
 #endif
     fc::context*                caller_context;
-    stack_allocator*            stack_alloc;
+    bco::stack_allocator*         stack_alloc;
     priority                     prio;
     //promise_base*              prom; 
     std::vector<blocked_promise> blocking_prom;
@@ -226,12 +193,8 @@ namespace fc {
     fc::context*                next;
     fc::thread*                 ctx_thread;
     bool                         canceled;
-#ifndef NDEBUG
-    const char*                  cancellation_reason;
-#endif
     bool                         complete;
     task_base*                   cur_task;
-    uint64_t                     context_posted_num; // serial number set each tiem the context is added to the ready list
   };
 
 } // naemspace fc 

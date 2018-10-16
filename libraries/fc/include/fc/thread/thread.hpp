@@ -1,7 +1,4 @@
 #pragma once
-
-#define FC_CONTEXT_STACK_SIZE (2048*1024)
-
 #include <fc/thread/task.hpp>
 #include <fc/vector.hpp>
 #include <fc/string.hpp>
@@ -10,18 +7,9 @@ namespace fc {
   class time_point;
   class microseconds;
 
-   namespace detail
-   {
-      void* get_thread_specific_data(unsigned slot);
-      void set_thread_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-      unsigned get_next_unused_task_storage_slot();
-      void* get_task_specific_data(unsigned slot);
-      void set_task_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-   }
-
   class thread {
     public:
-      thread( const std::string& name = "" );
+      thread( const char* name = "" );
       thread( thread&& m );
       thread& operator=(thread&& t );
 
@@ -44,8 +32,6 @@ namespace fc {
        */
       void        set_name( const string& n );
        
-      const char* current_task_desc() const;
-
       /**
        *  @brief print debug info about the state of every context / promise.
        *
@@ -66,13 +52,13 @@ namespace fc {
        *  @param prio the priority relative to other tasks
        */
       template<typename Functor>
-      auto async( Functor&& f, const char* desc FC_TASK_NAME_DEFAULT_ARG, priority prio = priority()) -> fc::future<decltype(f())> {
+      auto async( Functor&& f, const char* desc ="", priority prio = priority()) -> fc::future<decltype(f())> {
          typedef decltype(f()) Result;
          typedef typename fc::deduce<Functor>::type FunctorType;
          fc::task<Result,sizeof(FunctorType)>* tsk = 
-              new fc::task<Result,sizeof(FunctorType)>( fc::forward<Functor>(f), desc );
+              new fc::task<Result,sizeof(FunctorType)>( fc::forward<Functor>(f) );
          fc::future<Result> r(fc::shared_ptr< fc::promise<Result> >(tsk,true) );
-         async_task(tsk,prio);
+         async_task(tsk,prio,desc);
          return r;
       }
       void poke();
@@ -89,12 +75,12 @@ namespace fc {
        */
       template<typename Functor>
       auto schedule( Functor&& f, const fc::time_point& when, 
-                     const char* desc FC_TASK_NAME_DEFAULT_ARG, priority prio = priority()) -> fc::future<decltype(f())> {
+                     const char* desc = "", priority prio = priority()) -> fc::future<decltype(f())> {
          typedef decltype(f()) Result;
          fc::task<Result,sizeof(Functor)>* tsk = 
-              new fc::task<Result,sizeof(Functor)>( fc::forward<Functor>(f), desc );
+              new fc::task<Result,sizeof(Functor)>( fc::forward<Functor>(f) );
          fc::future<Result> r(fc::shared_ptr< fc::promise<Result> >(tsk,true) );
-         async_task(tsk,prio,when);
+         async_task(tsk,prio,when,desc);
          return r;
       }
      
@@ -131,17 +117,8 @@ namespace fc {
     private:
       thread( class thread_d* );
       friend class promise_base;
-      friend class task_base;
       friend class thread_d;
       friend class mutex;
-      friend void* detail::get_thread_specific_data(unsigned slot);
-      friend void detail::set_thread_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-      friend unsigned detail::get_next_unused_task_storage_slot();
-      friend void* detail::get_task_specific_data(unsigned slot);
-      friend void detail::set_task_specific_data(unsigned slot, void* new_value, void(*cleanup)(void*));
-#ifndef NDEBUG
-      friend class non_preemptable_scope_check;
-#endif
       friend void yield();
       friend void usleep(const microseconds&);
       friend void sleep_until(const time_point&);
@@ -156,13 +133,10 @@ namespace fc {
       void  exec();
       int  wait_any_until( std::vector<promise_base::ptr>&& v, const time_point& );
 
-      void async_task( task_base* t, const priority& p );
-      void async_task( task_base* t, const priority& p, const time_point& tp );
-
-      void notify_task_has_been_canceled();
-      void unblock(fc::context* c);
-
+      void async_task( task_base* t, const priority& p, const char* desc );
+      void async_task( task_base* t, const priority& p, const time_point& tp, const char* desc );
       class thread_d* my;
+
   };
 
   /** 
@@ -198,52 +172,8 @@ namespace fc {
    int wait_any_until( std::vector<promise_base::ptr>&& v, const time_point& tp );
 
    template<typename Functor>
-   auto async( Functor&& f, const char* desc FC_TASK_NAME_DEFAULT_ARG, priority prio = priority()) -> fc::future<decltype(f())> {
+   auto async( Functor&& f, const char* desc ="", priority prio = priority()) -> fc::future<decltype(f())> {
       return fc::thread::current().async( fc::forward<Functor>(f), desc, prio );
    }
-   template<typename Functor>
-   auto schedule( Functor&& f, const fc::time_point& t, const char* desc FC_TASK_NAME_DEFAULT_ARG, priority prio = priority()) -> fc::future<decltype(f())> {
-      return fc::thread::current().schedule( fc::forward<Functor>(f), t, desc, prio );
-   }
-
-  /**
-   * Call f() in thread t and block the current thread until it returns.
-   * 
-   * If t is null, simply execute f in the current thread.
-   */
-  template<typename Functor>
-  auto sync_call( thread* t, Functor&& f, const char* desc FC_TASK_NAME_DEFAULT_ARG, priority prio = priority()) -> decltype(f())
-  {
-     if( t == nullptr )
-         return f();
-
-     typedef decltype(f()) Result;
-     future<Result> r = t->async( f, desc, prio );
-     return r.wait();
-  }
-
-} // end namespace fc
-
-#ifdef _MSC_VER
-struct _EXCEPTION_POINTERS;
-
-namespace fc {
-   /* There's something about the setup of the stacks created for fc::async tasks
-    * that screws up the global structured exception filters installed by
-    * SetUnhandledExceptionFilter().  The only way I've found to catch an 
-    * unhaldned structured exception thrown in an async task is to put a 
-    * __try/__except block inside the async task.
-    * We do just that, and if a SEH escapes outside the function running 
-    * in the async task, fc will call an exception filter privided by 
-    * set_unhandled_structured_exception_filter(), passing as arguments
-    * the result of GetExceptionCode() and GetExceptionInformation().
-    *
-    * Right now there is only one global exception filter, used for any 
-    * async task.
-    */
-   typedef int (*unhandled_exception_filter_type)(unsigned, _EXCEPTION_POINTERS*);
-   void set_unhandled_structured_exception_filter(unhandled_exception_filter_type new_filter);
-   unhandled_exception_filter_type get_unhandled_structured_exception_filter();
 }
-#endif
 

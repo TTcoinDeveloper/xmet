@@ -21,11 +21,7 @@ namespace fc {
       ~file_mapping();
     private:
       friend class mapped_region;
-    #ifdef _WIN64
-      fc::fwd<boost::interprocess::file_mapping,0x38> my;
-    #else
       fc::fwd<boost::interprocess::file_mapping,0x24> my;
-    #endif
   };
 
   class mapped_region {

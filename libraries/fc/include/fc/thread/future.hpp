@@ -6,20 +6,6 @@
 #include <fc/thread/spin_yield_lock.hpp>
 #include <fc/optional.hpp>
 
-//#define FC_TASK_NAMES_ARE_MANDATORY 1
-#ifdef FC_TASK_NAMES_ARE_MANDATORY
-# define FC_TASK_NAME_DEFAULT_ARG
-#else
-# define FC_TASK_NAME_DEFAULT_ARG = "?"
-#endif
-
-//#define FC_CANCELATION_REASONS_ARE_MANDATORY 1
-#ifdef FC_CANCELATION_REASONS_ARE_MANDATORY
-# define FC_CANCELATION_REASON_DEFAULT_ARG
-#else
-# define FC_CANCELATION_REASON_DEFAULT_ARG = nullptr
-#endif
-
 namespace fc {
   class abstract_thread;
   struct void_t{};
@@ -61,11 +47,11 @@ namespace fc {
   class promise_base : public virtual retainable{
     public:
       typedef fc::shared_ptr<promise_base> ptr;
-      promise_base(const char* desc FC_TASK_NAME_DEFAULT_ARG);
+      promise_base(const char* desc="?");
 
       const char* get_desc()const;
                    
-      virtual void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG);
+      void cancel();
       bool canceled()const { return _canceled; }
       bool ready()const;
       bool error()const;
@@ -92,15 +78,12 @@ namespace fc {
       bool                        _ready;
       mutable spin_yield_lock     _spin_yield;
       thread*                     _blocked_thread;
+#ifndef NDEBUG
       unsigned                    _blocked_fiber_count;
+#endif
       time_point                  _timeout;
       fc::exception_ptr           _exceptp;
       bool                        _canceled;
-#ifndef NDEBUG
-    protected:
-      const char*                 _cancellation_reason;
-    private:
-#endif
       const char*                 _desc;
       detail::completion_handler* _compl;
   };
@@ -109,7 +92,7 @@ namespace fc {
   class promise : virtual public promise_base {
     public:
       typedef fc::shared_ptr< promise<T> > ptr;
-      promise( const char* desc FC_TASK_NAME_DEFAULT_ARG):promise_base(desc){}
+      promise( const char* desc = "?" ):promise_base(desc){}
       promise( const T& val ){ set_value(val); }
       promise( T&& val ){ set_value(fc::move(val) ); }
     
@@ -145,8 +128,8 @@ namespace fc {
   class promise<void> : virtual public promise_base {
     public:
       typedef fc::shared_ptr< promise<void> > ptr;
-      promise( const char* desc FC_TASK_NAME_DEFAULT_ARG):promise_base(desc){}
-      //promise( const void_t& ){ set_value(); }
+      promise( const char* desc = "?" ):promise_base(desc){}
+      promise( const void_t& ){ set_value(); }
     
       void wait(const microseconds& timeout = microseconds::maximum() ){
         this->_wait( timeout );
@@ -186,14 +169,7 @@ namespace fc {
     public:
       future( const fc::shared_ptr<promise<T>>& p ):m_prom(p){}
       future( fc::shared_ptr<promise<T>>&& p ):m_prom(fc::move(p)){}
-      future(const future<T>& f ) : m_prom(f.m_prom){}
       future(){}
-
-      future& operator=(future<T>&& f ) {
-        fc_swap(m_prom,f.m_prom); 
-        return *this;
-      }
-
 
       operator const T&()const { return wait(); }
       
@@ -201,15 +177,14 @@ namespace fc {
       /// @post ready()
       /// @throws timeout
       const T& wait( const microseconds& timeout = microseconds::maximum() )const {
-           return m_prom->wait(timeout);
+        return m_prom->wait(timeout);
       }
 
       /// @pre valid()
       /// @post ready()
       /// @throws timeout
       const T& wait_until( const time_point& tp )const {
-         if( m_prom )
-           return m_prom->wait_until(tp);
+        return m_prom->wait_until(tp);
       }
 
       bool valid()const { return !!m_prom;       }
@@ -220,23 +195,8 @@ namespace fc {
       /// @pre valid()
       bool error()const { return m_prom->error(); }
 
-      void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) const { if( m_prom ) m_prom->cancel(reason); }
-      bool canceled()const { if( m_prom ) return m_prom->canceled(); else return true;}
-
-      void cancel_and_wait(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG)
-      {
-         if( valid() )
-         {
-            cancel(reason);
-            try
-            {
-              wait();
-            }
-            catch (const canceled_exception&)
-            {
-            }
-         }
-      }
+      void cancel()const { m_prom->cancel(); }
+      bool canceled()const { return m_prom->canceled(); }
 
       /**
        * @pre valid()
@@ -259,21 +219,13 @@ namespace fc {
     public:
       future( const fc::shared_ptr<promise<void>>& p ):m_prom(p){}
       future( fc::shared_ptr<promise<void>>&& p ):m_prom(fc::move(p)){}
-      future(const future<void>& f ) : m_prom(f.m_prom){}
       future(){}
-
-      future& operator=(future<void>&& f ) {
-        fc_swap(m_prom,f.m_prom); 
-        return *this;
-      }
-
       
       /// @pre valid()
       /// @post ready()
       /// @throws timeout
       void wait( const microseconds& timeout = microseconds::maximum() ){
-         if( m_prom )
-           m_prom->wait(timeout);
+        m_prom->wait(timeout);
       }
 
       /// @pre valid()
@@ -284,19 +236,7 @@ namespace fc {
       }
 
       bool valid()const    { return !!m_prom;           }
-      bool canceled()const { return m_prom ? m_prom->canceled() : true; }
-
-      void cancel_and_wait(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) 
-      {
-        cancel(reason);
-        try
-        {
-          wait();
-        }
-        catch (const canceled_exception&)
-        {
-        }
-      }
+      bool canceled()const { return m_prom->canceled(); }
 
       /// @pre valid()
       bool ready()const { return m_prom->ready(); }
@@ -304,7 +244,7 @@ namespace fc {
       /// @pre valid()
       bool error()const { return m_prom->error(); }
 
-      void cancel(const char* reason FC_CANCELATION_REASON_DEFAULT_ARG) const { if( m_prom ) m_prom->cancel(reason); }
+      void cancel()const { m_prom->cancel(); }
 
       template<typename CompletionHandler>
       void on_complete( CompletionHandler&& c ) {

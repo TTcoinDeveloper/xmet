@@ -17,7 +17,7 @@ namespace fc {
   struct cin_buffer {
     cin_buffer():eof(false),write_pos(0),read_pos(0),cinthread("cin"){
     
-      cinthread.async( [=](){read();}, "cin_buffer::read" );
+      cinthread.async( [=](){read();} );
     }
 
     void     read() {
@@ -25,7 +25,7 @@ namespace fc {
       std::cin.read(&c,1);
       while( !std::cin.eof() ) {
         while( write_pos - read_pos > 0xfffff ) {
-          fc::promise<void>::ptr wr( new fc::promise<void>("cin_buffer::write_ready") );
+          fc::promise<void>::ptr wr( new fc::promise<void>() );
           write_ready = wr;
           if( write_pos - read_pos <= 0xfffff ) {
             wr->wait();
@@ -78,12 +78,17 @@ namespace fc {
 
   fc::istream& getline( fc::istream& i, fc::string& s, char delim  ) {
     fc::stringstream ss; 
-    char c;
-    i.read( &c, 1 );
-    while( true ) {
-      if( c == delim ) { s = ss.str();  return i; }
-      if( c != '\r' ) ss.write(&c,1);
-      i.read( &c, 1 );
+    try
+    {
+       char c;
+       i.read( &c, 1 );
+       while( true ) {
+         if( c == delim ) { s = ss.str();  return i; }
+         if( c != '\r' ) ss.write(&c,1);
+         i.read( &c, 1 );
+       }
+    } catch ( fc::eof_exception& )
+    {
     }
     s = ss.str();
     return i;
@@ -91,12 +96,10 @@ namespace fc {
 
 
   size_t cout_t::writesome( const char* buf, size_t len ) { std::cout.write(buf,len); return len; }
-  size_t cout_t::writesome( const std::shared_ptr<const char>& buf, size_t len, size_t offset ) { return writesome(buf.get() + offset, len); }
   void   cout_t::close() {}
   void   cout_t::flush() { std::cout.flush(); }
 
   size_t cerr_t::writesome( const char* buf, size_t len ) { std::cerr.write(buf,len); return len; }
-  size_t cerr_t::writesome( const std::shared_ptr<const char>& buf, size_t len, size_t offset ) { return writesome(buf.get() + offset, len); }
   void   cerr_t::close() {};
   void   cerr_t::flush() { std::cerr.flush(); }
 
@@ -124,7 +127,6 @@ namespace fc {
     }
     return size_t(u);
   }
-  size_t cin_t::readsome( const std::shared_ptr<char>& buf, size_t len, size_t offset ) { return readsome(buf.get() + offset, len); }
 
   cin_t::~cin_t() {
     /*
@@ -139,7 +141,7 @@ namespace fc {
     do {
         while( !b.eof &&  (b.write_pos - b.read_pos)==0 ){ 
            // wait for more... 
-           fc::promise<void>::ptr rr( new fc::promise<void>("cin_buffer::read_ready") );
+           fc::promise<void>::ptr rr( new fc::promise<void>() );
            {  // copy read_ready because it is accessed from multiple threads
              fc::scoped_lock<boost::mutex> lock( b.read_ready_mutex ); 
              b.read_ready = rr;
@@ -262,14 +264,12 @@ namespace fc {
 
   istream& operator>>( istream& o, std::string& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
 #ifdef USE_FC_STRING
   istream& operator>>( istream& o, fc::string& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 #endif
@@ -282,61 +282,51 @@ namespace fc {
 
   istream& operator>>( istream& o, double& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, float& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, int64_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, uint64_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, int32_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, uint32_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, int16_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, uint16_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, int8_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
   istream& operator>>( istream& o, uint8_t& v )
   {
-     assert(false && "not implemented");
      return o;
   }
 
@@ -350,34 +340,18 @@ namespace fc {
 
   istream& istream::read( char* buf, size_t len )
   {
-      char* pos = buf;
+      auto pos = buf;
       while( size_t(pos-buf) < len )
          pos += readsome( pos, len - (pos - buf) );
       return *this;
   }
 
-  istream& istream::read( const std::shared_ptr<char>& buf, size_t len, size_t offset )
-  {
-    size_t bytes_read = 0;
-    while( bytes_read < len )
-      bytes_read += readsome(buf, len - bytes_read, bytes_read + offset);
-    return *this;
-  }
-
   ostream& ostream::write( const char* buf, size_t len )
   {
-      const char* pos = buf;
+      auto pos = buf;
       while( size_t(pos-buf) < len )
          pos += writesome( pos, len - (pos - buf) );
       return *this;
   }
 
-  ostream& ostream::write( const std::shared_ptr<const char>& buf, size_t len, size_t offset )
-  {
-    size_t bytes_written = 0;
-    while( bytes_written < len )
-      bytes_written += writesome(buf, len - bytes_written, bytes_written + offset);
-    return *this;
-  }
-
-} // namespace fc
+}
