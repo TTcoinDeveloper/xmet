@@ -126,6 +126,8 @@ set( fc_sources
      vendor/cyoencode-1.0.2/src/CyoEncode.c
      )
 
+file( GLOB_RECURSE fc_headers ${CMAKE_CURRENT_SOURCE_DIR} *.hpp *.h )
+
 set( sources
   ${fc_sources}
 )
