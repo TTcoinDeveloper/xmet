@@ -1,0 +1,290 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|Win32">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGUID>{2A182079-7C5F-4E8F-BF25-757DB2AF875B}</ProjectGUID>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>Win32</Platform>
+    <ProjectName>performance_test</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseOfMfc>false</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v120</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+    <PropertyGroup>
+      <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+      <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\xmet\tests\Release\</OutDir>
+      <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">performance_test.dir\Release\</IntDir>
+      <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">performance_test</TargetName>
+      <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.exe</TargetExt>
+      <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+      <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</GenerateManifest>
+      <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">C:\xmet\tests\RelWithDebInfo\</OutDir>
+      <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">performance_test.dir\RelWithDebInfo\</IntDir>
+      <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">performance_test</TargetName>
+      <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">.exe</TargetExt>
+      <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">true</LinkIncremental>
+      <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">true</GenerateManifest>
+      <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\xmet\tests\Debug\</OutDir>
+      <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">performance_test.dir\Debug\</IntDir>
+      <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">performance_test</TargetName>
+      <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">.exe</TargetExt>
+      <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+      <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</GenerateManifest>
+    </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>Release/</AssemblerListingLocation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UndefinePreprocessorDefinitions>BOOST_ALL_DYN_LINK;BOOST_LINKING_PYTHON;BOOST_DEBUG_PYTHON</UndefinePreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat></DebugInformationFormat>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;WIN32;NOMINMAX;_WIN32_WINNT=0x0501;_CRT_SECURE_NO_WARNINGS;_SCL_SERCURE_NO_WARNINGS;BOOST_ALL_NO_LIB;_WEBSOCKETPP_CPP11_CHRONO_;CMAKE_INTDIR="Release";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;WIN32;NOMINMAX;_WIN32_WINNT=0x0501;_CRT_SECURE_NO_WARNINGS;_SCL_SERCURE_NO_WARNINGS;BOOST_ALL_NO_LIB;_WEBSOCKETPP_CPP11_CHRONO_;CMAKE_INTDIR=\"Release\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalOptions> /machine:X86 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;..\libraries\chain\Release\graphene_chain.lib;..\libraries\app\Release\graphene_app.lib;..\libraries\plugins\account_history\Release\graphene_account_history.lib;..\libraries\egenesis\Release\graphene_egenesis_none.lib;..\libraries\fc\Release\fc.lib;..\libraries\app\Release\graphene_app.lib;..\libraries\plugins\market_history\Release\graphene_market_history.lib;..\libraries\app\Release\graphene_app.lib;..\libraries\plugins\market_history\Release\graphene_market_history.lib;..\libraries\net\Release\graphene_net.lib;..\libraries\time\Release\graphene_time.lib;..\libraries\utilities\Release\graphene_utilities.lib;..\libraries\chain\Release\graphene_chain.lib;..\libraries\db\Release\graphene_db.lib;..\libraries\fc\Release\fc.lib;..\libraries\fc\vendor\udt4\Release\udt.lib;C:\boost_1_55_0\stage\lib\libboost_thread-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_date_time-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_system-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_filesystem-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_program_options-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_signals-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_serialization-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_chrono-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_unit_test_framework-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_context-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_locale-vc120-mt-1_55.lib;C:\OpenSSL\lib\ssleay32MD.lib;C:\OpenSSL\lib\libeay32MD.lib;C:\zlib-1.2.8\zlibd.lib;WS2_32.lib;Userenv.lib;Rpcrt4.lib;..\libraries\fc\Release\secp256k1.lib;crypt32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/xmet/tests/Release/performance_test.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/xmet/tests/Release/performance_test.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <Version></Version>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>RelWithDebInfo/</AssemblerListingLocation>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UndefinePreprocessorDefinitions>BOOST_ALL_DYN_LINK;BOOST_LINKING_PYTHON;BOOST_DEBUG_PYTHON</UndefinePreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;WIN32;NOMINMAX;_WIN32_WINNT=0x0501;_CRT_SECURE_NO_WARNINGS;_SCL_SERCURE_NO_WARNINGS;BOOST_ALL_NO_LIB;_WEBSOCKETPP_CPP11_CHRONO_;CMAKE_INTDIR="RelWithDebInfo";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;WIN32;NOMINMAX;_WIN32_WINNT=0x0501;_CRT_SECURE_NO_WARNINGS;_SCL_SERCURE_NO_WARNINGS;BOOST_ALL_NO_LIB;_WEBSOCKETPP_CPP11_CHRONO_;CMAKE_INTDIR=\"RelWithDebInfo\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalOptions> /machine:X86 /debug %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;..\libraries\chain\RelWithDebInfo\graphene_chain.lib;..\libraries\app\RelWithDebInfo\graphene_app.lib;..\libraries\plugins\account_history\RelWithDebInfo\graphene_account_history.lib;..\libraries\egenesis\RelWithDebInfo\graphene_egenesis_none.lib;..\libraries\fc\RelWithDebInfo\fc.lib;..\libraries\app\RelWithDebInfo\graphene_app.lib;..\libraries\plugins\market_history\RelWithDebInfo\graphene_market_history.lib;..\libraries\app\RelWithDebInfo\graphene_app.lib;..\libraries\plugins\market_history\RelWithDebInfo\graphene_market_history.lib;..\libraries\net\RelWithDebInfo\graphene_net.lib;..\libraries\time\RelWithDebInfo\graphene_time.lib;..\libraries\utilities\RelWithDebInfo\graphene_utilities.lib;..\libraries\chain\RelWithDebInfo\graphene_chain.lib;..\libraries\db\RelWithDebInfo\graphene_db.lib;..\libraries\fc\RelWithDebInfo\fc.lib;..\libraries\fc\vendor\udt4\RelWithDebInfo\udt.lib;C:\boost_1_55_0\stage\lib\libboost_thread-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_date_time-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_system-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_filesystem-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_program_options-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_signals-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_serialization-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_chrono-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_unit_test_framework-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_context-vc120-mt-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_locale-vc120-mt-1_55.lib;C:\OpenSSL\lib\ssleay32MD.lib;C:\OpenSSL\lib\libeay32MD.lib;C:\zlib-1.2.8\zlibd.lib;WS2_32.lib;Userenv.lib;Rpcrt4.lib;..\libraries\fc\RelWithDebInfo\secp256k1.lib;crypt32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/xmet/tests/RelWithDebInfo/performance_test.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/xmet/tests/RelWithDebInfo/performance_test.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <Version></Version>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>Debug/</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UndefinePreprocessorDefinitions>BOOST_ALL_DYN_LINK;BOOST_LINKING_PYTHON;BOOST_DEBUG_PYTHON</UndefinePreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;WIN32;NOMINMAX;_WIN32_WINNT=0x0501;_CRT_SECURE_NO_WARNINGS;_SCL_SERCURE_NO_WARNINGS;BOOST_ALL_NO_LIB;_WEBSOCKETPP_CPP11_CHRONO_;CMAKE_INTDIR="Debug";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;WIN32;NOMINMAX;_WIN32_WINNT=0x0501;_CRT_SECURE_NO_WARNINGS;_SCL_SERCURE_NO_WARNINGS;BOOST_ALL_NO_LIB;_WEBSOCKETPP_CPP11_CHRONO_;CMAKE_INTDIR=\"Debug\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:/xmet/libraries/chain/include;C:/xmet/libraries/app/include;C:/xmet/libraries/app/../egenesis/include;C:/xmet/libraries/plugins/account_history/include;C:/xmet/libraries/egenesis/include;C:/xmet/libraries/fc/include;C:/boost_1_55_0;C:/openssl-1.0.1e/include;C:/readline/include;C:/xmet/libraries/fc/vendor/secp256k1-zkp/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalOptions> /machine:X86 /debug %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib;..\libraries\chain\Debug\graphene_chain.lib;..\libraries\app\Debug\graphene_app.lib;..\libraries\plugins\account_history\Debug\graphene_account_history.lib;..\libraries\egenesis\Debug\graphene_egenesis_none.lib;..\libraries\fc\Debug\fc_debug.lib;..\libraries\app\Debug\graphene_app.lib;..\libraries\plugins\market_history\Debug\graphene_market_history.lib;..\libraries\app\Debug\graphene_app.lib;..\libraries\plugins\market_history\Debug\graphene_market_history.lib;..\libraries\net\Debug\graphene_net.lib;..\libraries\time\Debug\graphene_time.lib;..\libraries\utilities\Debug\graphene_utilities.lib;..\libraries\chain\Debug\graphene_chain.lib;..\libraries\db\Debug\graphene_db.lib;..\libraries\fc\Debug\fc_debug.lib;..\libraries\fc\vendor\udt4\Debug\udt_debug.lib;C:\boost_1_55_0\stage\lib\libboost_thread-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_date_time-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_system-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_filesystem-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_program_options-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_signals-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_serialization-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_chrono-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_unit_test_framework-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_context-vc120-mt-gd-1_55.lib;C:\boost_1_55_0\stage\lib\libboost_locale-vc120-mt-gd-1_55.lib;C:\OpenSSL\lib\ssleay32MDd.lib;C:\OpenSSL\lib\libeay32MDd.lib;C:\zlib-1.2.8\zlibd.lib;WS2_32.lib;Userenv.lib;Rpcrt4.lib;..\libraries\fc\Debug\secp256k1_debug.lib;crypt32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <ImportLibrary>C:/xmet/tests/Debug/performance_test.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/xmet/tests/Debug/performance_test.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+      <Version></Version>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="CMakeLists.txt">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Building Custom Rule C:/xmet/tests/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">setlocal
+"C:\Program Files (x86)\CMake 2.8\bin\cmake.exe" -HC:/xmet -BC:/xmet --check-stamp-file C:\xmet\tests\CMakeFiles\generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:/xmet/tests/CMakeLists.txt;C:\xmet\tests\CMakeLists.txt;C:\xmet\CMakeModules\FindGperftools.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\FindPackageMessage.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CMakeParseArguments.cmake;C:\xmet\tests\CMakeLists.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">C:\xmet\tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">Building Custom Rule C:/xmet/tests/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">setlocal
+"C:\Program Files (x86)\CMake 2.8\bin\cmake.exe" -HC:/xmet -BC:/xmet --check-stamp-file C:\xmet\tests\CMakeFiles\generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">C:/xmet/tests/CMakeLists.txt;C:\xmet\tests\CMakeLists.txt;C:\xmet\CMakeModules\FindGperftools.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\FindPackageMessage.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CMakeParseArguments.cmake;C:\xmet\tests\CMakeLists.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">C:\xmet\tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|Win32'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Building Custom Rule C:/xmet/tests/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">setlocal
+"C:\Program Files (x86)\CMake 2.8\bin\cmake.exe" -HC:/xmet -BC:/xmet --check-stamp-file C:\xmet\tests\CMakeFiles\generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:/xmet/tests/CMakeLists.txt;C:\xmet\tests\CMakeLists.txt;C:\xmet\CMakeModules\FindGperftools.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\FindPackageHandleStandardArgs.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\FindPackageMessage.cmake;C:\Program Files (x86)\CMake 2.8\share\cmake-2.8\Modules\CMakeParseArguments.cmake;C:\xmet\tests\CMakeLists.txt;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">C:\xmet\tests\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="performance\performance_tests.cpp"  />
+    <ClCompile Include="common\database_fixture.cpp"  />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:/xmet/ZERO_CHECK.vcxproj">
+      <Project>636A4F27-68F2-4187-9963-E58472681C7A</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/fc/fc.vcxproj">
+      <Project>9011BC57-3C62-477B-B332-FE69B35CD890</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/plugins/account_history/graphene_account_history.vcxproj">
+      <Project>9D797F5A-5B18-4CA6-8307-AEA458032AE4</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/app/graphene_app.vcxproj">
+      <Project>10264808-0B5E-4ABB-BF69-FA9AB1B7AD53</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/chain/graphene_chain.vcxproj">
+      <Project>1A076FF3-E28A-4125-92FE-BC4A27EB8FCB</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/db/graphene_db.vcxproj">
+      <Project>4580FD69-D305-4A1F-8457-C623154243C3</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/egenesis/graphene_egenesis_none.vcxproj">
+      <Project>F197EF7B-8D1B-41B4-809D-F9FA1E12A5E9</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/net/graphene_net.vcxproj">
+      <Project>2A3F8BCB-AA6C-430B-B455-8B0876120DC6</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/time/graphene_time.vcxproj">
+      <Project>7A883B50-3D74-417E-8036-9AD5C3E3CDF4</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/utilities/graphene_utilities.vcxproj">
+      <Project>F266A7A2-0D97-4A8C-BD08-32FA865C6B7C</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/fc/secp256k1.vcxproj">
+      <Project>96007C59-62B5-42AE-8DE5-EC9211EDC284</Project>
+    </ProjectReference>
+    <ProjectReference Include="C:/xmet/libraries/fc/vendor/udt4/udt.vcxproj">
+      <Project>A2F412D3-6BF4-41FB-AF9A-9C08688F154D</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
