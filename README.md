@@ -3,16 +3,16 @@ Intro for new developers
 
 This is a quick introduction to get new developers up to speed on Graphene.
 
-Starting Graphene
+Starting Xmet
 -----------------
 
 For Ubuntu 14.04 LTS users, see this link first:
-    https://github.com/cryptonomex/graphene/wiki/build-ubuntu
+    https://github.com/TTcoinDeveloper/xmet.git
 
 and then proceed with:
 
-    git clone https://github.com/cryptonomex/graphene.git
-    cd graphene
+    git clone https://github.com/TTcoinDeveloper/xmet.git
+    cd xmet
     git submodule update --init --recursive
     cmake -DCMAKE_BUILD_TYPE=Debug .
     make
@@ -39,8 +39,6 @@ To import your initial balance:
 
 If you send private keys over this connection, `rpc-endpoint` should be bound to localhost for security.
 
-A list of CLI wallet commands is available
-[here](https://github.com/cryptonomex/graphene/blob/master/libraries/wallet/include/graphene/wallet/wallet.hpp).
 
 Code coverage testing
 ---------------------
